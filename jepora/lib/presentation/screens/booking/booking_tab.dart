@@ -70,9 +70,19 @@ class _BookingTabState extends State<BookingTab> {
   }
 }
 
+// ─── ORDER CARD (dengan tombol Upload Bukti Bayar & Lacak Supir) ─────────
 class _OrderCard extends StatelessWidget {
   final OrderModel order;
   const _OrderCard({required this.order});
+
+  /// Apakah status ini layak menampilkan tombol upload bukti bayar
+  bool get _showUploadPayment =>
+      order.status == 'pending' && order.paymentStatus != 'paid';
+
+  /// Apakah status ini layak menampilkan tombol lacak supir
+  bool get _showTrackDriver =>
+      (order.status == 'confirmed' || order.status == 'ongoing') &&
+      order.driverName != null;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +98,7 @@ class _OrderCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Header ────────────────────────────────────────
             Row(
               children: [
                 Container(
@@ -114,9 +125,12 @@ class _OrderCard extends StatelessWidget {
                 StatusBadge(status: order.status),
               ],
             ),
+
             const SizedBox(height: 12),
             const Divider(color: AppColors.divider, height: 1),
             const SizedBox(height: 12),
+
+            // ── Info Row ──────────────────────────────────────
             Row(
               children: [
                 _InfoItem(
@@ -128,10 +142,12 @@ class _OrderCard extends StatelessWidget {
                 _InfoItem(
                   icon: Icons.payments_outlined,
                   label: 'Total',
-                  value: 'Rp ${order.totalPrice.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                  value: 'Rp ${order.totalPrice.toStringAsFixed(0).replaceAllMapped(
+                    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
                 ),
               ],
             ),
+
             if (order.driverName != null) ...[
               const SizedBox(height: 10),
               Row(
@@ -142,6 +158,49 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
             ],
+
+            // ── Action Buttons ────────────────────────────────
+            if (_showUploadPayment || _showTrackDriver) ...[
+              const SizedBox(height: 12),
+              const Divider(color: AppColors.divider, height: 1),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  // Tombol Upload Bukti Bayar
+                  if (_showUploadPayment)
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.upload_rounded,
+                        label: 'Upload Bukti Bayar',
+                        color: AppColors.primary,
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          '/upload-payment',
+                          arguments: order.id,
+                        ),
+                      ),
+                    ),
+
+                  if (_showUploadPayment && _showTrackDriver)
+                    const SizedBox(width: 10),
+
+                  // Tombol Lacak Supir
+                  if (_showTrackDriver)
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.my_location_rounded,
+                        label: 'Lacak Supir',
+                        color: AppColors.statusOngoing,
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          '/driver-tracking',
+                          arguments: order.id,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -149,6 +208,56 @@ class _OrderCard extends StatelessWidget {
   }
 }
 
+// ─── Tombol Aksi Kecil ────────────────────────────────────────
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                  fontFamily: 'Poppins',
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Info Item ────────────────────────────────────────────────
 class _InfoItem extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -173,7 +282,7 @@ class _InfoItem extends StatelessWidget {
   }
 }
 
-// ─── CREATE BOOKING SCREEN ───────────────────────────────────
+// ─── CREATE BOOKING SCREEN ────────────────────────────────────
 class CreateBookingScreen extends StatefulWidget {
   const CreateBookingScreen({super.key});
 
@@ -279,7 +388,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final packages    = context.watch<PackageService>();
+    final packages     = context.watch<PackageService>();
     final orderService = context.watch<OrderService>();
     final selectedPkg  = _selectedPkg != null
         ? packages.packages.firstWhere((p) => p.id == _selectedPkg,
@@ -296,7 +405,6 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Pilih paket
               const Text('Pilih Paket Wisata', style: AppTextStyles.label),
               const SizedBox(height: 8),
               Container(
@@ -325,7 +433,6 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                 ),
               ),
 
-              // Harga & konversi
               if (selectedPkg != null) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -340,7 +447,8 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Rp ${selectedPkg.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                            Text('Rp ${selectedPkg.price.toStringAsFixed(0).replaceAllMapped(
+                              RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
                               style: AppTextStyles.price),
                             if (_convertedPrice != null)
                               Text('≈ $_selectedCurrency ${_convertedPrice!.toStringAsFixed(2)}',
@@ -365,7 +473,6 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               ],
 
               const SizedBox(height: 20),
-              // Tanggal
               const Text('Tanggal Booking', style: AppTextStyles.label),
               const SizedBox(height: 8),
               GestureDetector(
@@ -407,7 +514,6 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               ),
 
               const SizedBox(height: 20),
-              // Lokasi GPS
               const Text('Lokasi Penjemputan', style: AppTextStyles.label),
               const SizedBox(height: 8),
               GestureDetector(
@@ -444,7 +550,6 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               ),
 
               const SizedBox(height: 20),
-              // Catatan
               const Text('Catatan (opsional)', style: AppTextStyles.label),
               const SizedBox(height: 8),
               AppTextField(
