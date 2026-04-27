@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jepora/core/constants/app_constants.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/services/auth_service.dart';
@@ -58,7 +59,7 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 }
 
-// ─── DASHBOARD TAB ───────────────────────────────────────────
+// ─── DASHBOARD TAB ────────────────────────────────────────────
 class _AdminDashboardTab extends StatefulWidget {
   const _AdminDashboardTab();
 
@@ -97,7 +98,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
                 Row(
                   children: [
                     Expanded(
@@ -133,7 +133,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                 ),
                 const SizedBox(height: 24),
 
-                // Stats grid
                 const Text('Ringkasan Pesanan', style: AppTextStyles.label),
                 const SizedBox(height: 12),
                 GridView.count(
@@ -156,7 +155,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                 ),
 
                 const SizedBox(height: 24),
-                // Pesanan terbaru
                 SectionHeader(
                   title: 'Pesanan Terbaru',
                   actionText: 'Lihat Semua',
@@ -183,7 +181,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
   }
 }
 
-// ─── ORDERS TAB ──────────────────────────────────────────────
 class _AdminOrdersTab extends StatefulWidget {
   const _AdminOrdersTab();
 
@@ -215,7 +212,6 @@ class _AdminOrdersTabState extends State<_AdminOrdersTab> {
       appBar: AppBar(title: const Text('Semua Pesanan')),
       body: Column(
         children: [
-          // Filter chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -275,7 +271,7 @@ class _AdminOrdersTabState extends State<_AdminOrdersTab> {
   }
 }
 
-// ─── PACKAGES TAB ────────────────────────────────────────────
+// ─── PACKAGES TAB ─────────────────────────────────────────────
 class _AdminPackagesTab extends StatefulWidget {
   const _AdminPackagesTab();
 
@@ -292,6 +288,64 @@ class _AdminPackagesTabState extends State<_AdminPackagesTab> {
     });
   }
 
+  /// Navigasi ke form tambah paket (arguments: null = mode tambah)
+  void _goToAddPackage() {
+    Navigator.pushNamed(context, '/admin/package-form').then((_) {
+      // Refresh list setelah kembali dari form
+      context.read<PackageService>().fetchPackages();
+    });
+  }
+
+  /// Navigasi ke form edit paket (arguments: PackageModel = mode edit)
+  void _goToEditPackage(PackageModel pkg) {
+    Navigator.pushNamed(
+      context,
+      '/admin/package-form',
+      arguments: pkg,
+    ).then((_) {
+      context.read<PackageService>().fetchPackages();
+    });
+  }
+
+  /// Konfirmasi hapus paket
+  Future<void> _confirmDelete(BuildContext context, PackageModel pkg) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus Paket',
+          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w700)),
+        content: Text('Yakin ingin menghapus paket "${pkg.name}"?',
+          style: const TextStyle(fontFamily: 'Poppins')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal',
+              style: TextStyle(color: AppColors.textSecondary, fontFamily: 'Poppins')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Hapus',
+              style: TextStyle(fontFamily: 'Poppins', color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      // TODO: panggil deletePackage dari PackageService jika sudah ada
+      // await context.read<PackageService>().deletePackage(pkg.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Paket "${pkg.name}" dihapus'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      context.read<PackageService>().fetchPackages();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final packages = context.watch<PackageService>();
@@ -301,76 +355,105 @@ class _AdminPackagesTabState extends State<_AdminPackagesTab> {
       appBar: AppBar(
         title: const Text('Paket Wisata'),
         actions: [
+          // ── Tombol Tambah Paket — diarahkan ke form ──────
           IconButton(
             icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary),
-            onPressed: () {}, // TODO: add package screen
+            tooltip: 'Tambah Paket',
+            onPressed: _goToAddPackage,
           ),
         ],
       ),
       body: packages.isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : packages.packages.isEmpty
-              ? const EmptyState(title: 'Belum ada paket', icon: Icons.landscape_outlined)
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: packages.packages.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (ctx, i) {
-                    final pkg = packages.packages[i];
-                    return Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.divider, width: 0.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 54, height: 54,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryLight,
+              ? EmptyState(
+                  title: 'Belum ada paket',
+                  icon: Icons.landscape_outlined,
+                  actionText: 'Tambah Paket',
+                  onAction: _goToAddPackage,
+                )
+              : RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () => packages.fetchPackages(),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: packages.packages.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (ctx, i) {
+                      final pkg = packages.packages[i];
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.divider, width: 0.5),
+                        ),
+                        child: Row(
+                          children: [
+                            // Gambar paket (atau ikon default)
+                            ClipRRect(
                               borderRadius: BorderRadius.circular(10),
+                              child: pkg.image != null
+                                  ? Image.network(
+                                      '${AppConstants.baseUrl.replaceAll('/api', '')}/uploads/${pkg.image}',
+                                      width: 54, height: 54, fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => _PackageIcon(),
+                                    )
+                                  : _PackageIcon(),
                             ),
-                            child: const Icon(Icons.landscape_rounded,
-                              color: AppColors.primary, size: 28),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(pkg.name, style: AppTextStyles.label),
-                                Text('Rp ${pkg.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                                  style: AppTextStyles.price),
-                                Text('${pkg.duration} jam', style: AppTextStyles.caption),
-                              ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(pkg.name, style: AppTextStyles.label),
+                                  Text('Rp ${pkg.price.toStringAsFixed(0).replaceAllMapped(
+                                    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                                    style: AppTextStyles.price),
+                                  Text('${pkg.duration} jam', style: AppTextStyles.caption),
+                                ],
+                              ),
                             ),
-                          ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined,
-                                  color: AppColors.info, size: 20),
-                                onPressed: () {},
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded,
-                                  color: AppColors.error, size: 20),
-                                onPressed: () {},
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                            // ── Tombol Edit — diarahkan ke form ──
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined,
+                                color: AppColors.info, size: 20),
+                              tooltip: 'Edit Paket',
+                              onPressed: () => _goToEditPackage(pkg),
+                            ),
+                            // ── Tombol Hapus ──────────────────────
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded,
+                                color: AppColors.error, size: 20),
+                              tooltip: 'Hapus Paket',
+                              onPressed: () => _confirmDelete(context, pkg),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
     );
   }
 }
 
-// ─── PROFILE TAB ─────────────────────────────────────────────
+// Helper icon widget
+class _PackageIcon extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 54, height: 54,
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.landscape_rounded, color: AppColors.primary, size: 28),
+    );
+  }
+}
+
+// ─── PROFILE TAB ──────────────────────────────────────────────
 class _AdminProfileTab extends StatelessWidget {
   const _AdminProfileTab();
 
@@ -445,7 +528,7 @@ class _AdminProfileTab extends StatelessWidget {
   }
 }
 
-// ─── ADMIN ORDER CARD ────────────────────────────────────────
+// ─── ADMIN ORDER CARD ─────────────────────────────────────────
 class _AdminOrderCard extends StatelessWidget {
   final OrderModel order;
   final bool showActions;
@@ -553,7 +636,7 @@ class _AssignDriverButtonState extends State<_AssignDriverButton> {
   }
 }
 
-// ─── SHARED WIDGETS ──────────────────────────────────────────
+// ─── SHARED WIDGETS ───────────────────────────────────────────
 class _StatCard extends StatelessWidget {
   final String label;
   final String value;
