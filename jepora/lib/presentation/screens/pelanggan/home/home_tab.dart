@@ -33,19 +33,13 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final auth     = context.watch<AuthService>();
+    final auth = context.watch<AuthService>();
     final packages = context.watch<PackageService>();
-    final notifs   = context.watch<NotificationService>();
+    final notifs = context.watch<NotificationService>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
       // ── FAB Chatbot ───────────────────────────────────────
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pushNamed(context, '/chatbot'),
-        backgroundColor: AppColors.primary,
-        tooltip: 'Tanya AI JeepOra',
-        child: const Icon(Icons.smart_toy_rounded, color: Colors.white),
-      ),
       body: SafeArea(
         child: RefreshIndicator(
           color: AppColors.primary,
@@ -62,43 +56,46 @@ class _HomeTabState extends State<HomeTab> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('JeepOra',
+                            const Text(
+                              'JeepOra',
                               style: TextStyle(
-                                fontSize: 22, fontWeight: FontWeight.w700,
-                                color: AppColors.primary, fontFamily: 'Poppins',
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                                fontFamily: 'Poppins',
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      // ── Tombol Chatbot di AppBar ─────────────
-                      IconButton(
-                        icon: const Icon(Icons.smart_toy_outlined,
-                          color: AppColors.textPrimary, size: 26),
-                        tooltip: 'Chatbot',
-                        onPressed: () => Navigator.pushNamed(context, '/chatbot'),
                       ),
                       // ── Notif icon ───────────────────────────
                       Stack(
                         children: [
                           IconButton(
                             icon: const Icon(Icons.notifications_outlined,
-                              color: AppColors.textPrimary, size: 26),
-                            onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                                color: AppColors.textPrimary, size: 26),
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/notifications'),
                           ),
                           if (notifs.unreadCount > 0)
                             Positioned(
-                              right: 8, top: 8,
+                              right: 8,
+                              top: 8,
                               child: Container(
-                                width: 16, height: 16,
+                                width: 16,
+                                height: 16,
                                 decoration: const BoxDecoration(
-                                  color: AppColors.error, shape: BoxShape.circle,
+                                  color: AppColors.error,
+                                  shape: BoxShape.circle,
                                 ),
                                 child: Center(
                                   child: Text(
-                                    notifs.unreadCount > 9 ? '9+' : '${notifs.unreadCount}',
+                                    notifs.unreadCount > 9
+                                        ? '9+'
+                                        : '${notifs.unreadCount}',
                                     style: const TextStyle(
-                                      fontSize: 9, color: Colors.white,
+                                      fontSize: 9,
+                                      color: Colors.white,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -133,60 +130,74 @@ class _HomeTabState extends State<HomeTab> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Jelajahi Keindahan',
-                                style: TextStyle(
-                                  fontSize: 14, color: Colors.white.withOpacity(0.9),
-                                  fontFamily: 'Poppins',
-                                )),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontFamily: 'Poppins',
+                                  )),
                               const Text('Dataran Tinggi',
-                                style: TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.w700,
-                                  color: Colors.white, fontFamily: 'Poppins',
-                                )),
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    fontFamily: 'Poppins',
+                                  )),
                               const Text('Dieng',
-                                style: TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.w700,
-                                  color: Color(0xFFD4FFE8), fontFamily: 'Poppins',
-                                )),
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFD4FFE8),
+                                    fontFamily: 'Poppins',
+                                  )),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
                                   // Booking button
                                   GestureDetector(
-                                    onTap: () => Navigator.pushNamed(context, '/booking'),
+                                    onTap: () => Navigator.pushNamed(
+                                        context, '/booking'),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 8),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: const Text('Booking Sekarang',
-                                        style: TextStyle(
-                                          fontSize: 13, fontWeight: FontWeight.w700,
-                                          color: AppColors.primaryDark, fontFamily: 'Poppins',
-                                        )),
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primaryDark,
+                                            fontFamily: 'Poppins',
+                                          )),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   // Chatbot shortcut button di hero banner
                                   GestureDetector(
-                                    onTap: () => Navigator.pushNamed(context, '/chatbot'),
+                                    onTap: () => Navigator.pushNamed(
+                                        context, '/chatbot'),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
                                       decoration: BoxDecoration(
                                         color: Colors.white24,
                                         borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Colors.white38),
+                                        border:
+                                            Border.all(color: Colors.white38),
                                       ),
                                       child: const Row(
                                         children: [
                                           Icon(Icons.smart_toy_rounded,
-                                            color: Colors.white, size: 14),
+                                              color: Colors.white, size: 14),
                                           SizedBox(width: 4),
-                                          Text('Tanya AI',
-                                            style: TextStyle(
-                                              fontSize: 12, fontWeight: FontWeight.w600,
-                                              color: Colors.white, fontFamily: 'Poppins',
-                                            )),
+                                          Text('',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                                fontFamily: 'Poppins',
+                                              )),
                                         ],
                                       ),
                                     ),
@@ -197,59 +208,9 @@ class _HomeTabState extends State<HomeTab> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.terrain_rounded, size: 70, color: Colors.white24),
+                        const Icon(Icons.terrain_rounded,
+                            size: 70, color: Colors.white24),
                       ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── Quick Access: Chatbot Banner ─────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: GestureDetector(
-                    onTap: () => Navigator.pushNamed(context, '/chatbot'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.divider, width: 0.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40, height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryLight,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.smart_toy_rounded,
-                              color: AppColors.primary, size: 22),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Tanya AI JeepOra 🤖',
-                                  style: TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary, fontFamily: 'Poppins',
-                                  )),
-                                Text('Tanya rekomendasi wisata, tips, atau info paket',
-                                  style: TextStyle(
-                                    fontSize: 11, color: AppColors.textHint,
-                                    fontFamily: 'Poppins',
-                                  )),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.arrow_forward_ios_rounded,
-                            size: 14, color: AppColors.textHint),
-                        ],
-                      ),
                     ),
                   ),
                 ),
@@ -263,7 +224,8 @@ class _HomeTabState extends State<HomeTab> {
                     controller: _searchCtrl,
                     decoration: InputDecoration(
                       hintText: 'Pencarian',
-                      prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
+                      prefixIcon: const Icon(Icons.search_rounded,
+                          color: AppColors.textHint, size: 20),
                       suffixIcon: _searchCtrl.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear, size: 18),
@@ -277,7 +239,8 @@ class _HomeTabState extends State<HomeTab> {
                     onSubmitted: (v) =>
                         context.read<PackageService>().fetchPackages(search: v),
                     onChanged: (v) {
-                      if (v.isEmpty) context.read<PackageService>().fetchPackages();
+                      if (v.isEmpty)
+                        context.read<PackageService>().fetchPackages();
                       setState(() {});
                     },
                   ),
@@ -339,7 +302,8 @@ class _HomeTabState extends State<HomeTab> {
                               duration: pkg.duration,
                               image: pkg.image,
                               onTap: () => Navigator.pushNamed(
-                                context, '/package-detail',
+                                context,
+                                '/package-detail',
                                 arguments: pkg.id,
                               ),
                             ),
@@ -350,7 +314,8 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                 ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 80)), // ruang FAB
+              const SliverToBoxAdapter(
+                  child: SizedBox(height: 80)), // ruang FAB
             ],
           ),
         ),

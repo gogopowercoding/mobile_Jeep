@@ -9,7 +9,7 @@ import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/pelanggan/main_screen.dart';
 import 'presentation/screens/admin/admin_screen.dart';
-import 'presentation/screens/admin/admin_package_form_screen.dart';   
+import 'presentation/screens/admin/tabs/admin_package_form_screen.dart';   
 import 'presentation/screens/driver/driver_screen.dart';
 import 'presentation/screens/pelanggan/booking/booking_tab.dart';
 import 'presentation/screens/pelanggan/booking/upload_payment_screen.dart';     
@@ -20,7 +20,6 @@ import 'presentation/screens/pelanggan/chatbot/chatbot_screen.dart';
 import 'presentation/screens/pelanggan/profile/edit_profile_screen.dart';
 import 'presentation/screens/pelanggan/profile/notifications_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'presentation/screens/admin/admin_schedule_form.dart';
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,7 +63,7 @@ class JeepOraApp extends StatelessWidget {
           // ── Admin ─────────────────────────────────────────────
           '/admin':               (_) => const AdminScreen(),
           '/admin/package-form':  (_) => const AdminPackageFormScreen(),    
-          '/admin-schedule-form': (c) => const AdminScheduleForm(),
+
 
           // ── Supir ─────────────────────────────────────────────
           '/driver':              (_) => const DriverScreen(),
