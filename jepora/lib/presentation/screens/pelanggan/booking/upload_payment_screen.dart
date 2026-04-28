@@ -2,9 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/network/api_client.dart';
-import '../../widgets/common/common_widgets.dart';
+import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/core/network/api_client.dart';
+import 'package:jepora/presentation/widgets/common/common_widgets.dart';
 
 /// Screen upload bukti pembayaran
 /// Route: '/upload-payment', arguments: int orderId

@@ -12,14 +12,25 @@ class PackageService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// cache schedule per package
+  final Map<int, List<ScheduleModel>> _scheduleCache = {};
+  final Map<int, bool> _scheduleLoading = {};
+
+  Map<int, List<ScheduleModel>> get scheduleCache => _scheduleCache;
+  Map<int, bool> get scheduleLoading => _scheduleLoading;
+
+  // ─── PACKAGES ─────────────────────────────
   Future<void> fetchPackages({String? search}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
+
     try {
-      final res = await ApiClient().dio.get('/packages',
+      final res = await ApiClient().dio.get(
+        '/packages',
         queryParameters: search != null ? {'search': search} : null,
       );
+
       if (res.data['success'] == true) {
         _packages = (res.data['data'] as List)
             .map((e) => PackageModel.fromJson(e))
@@ -33,6 +44,80 @@ class PackageService extends ChangeNotifier {
     }
   }
 
+  // ─── SCHEDULE (PER PACKAGE) ───────────────
+  Future<List<ScheduleModel>> fetchSchedules(int packageId) async {
+    _scheduleLoading[packageId] = true;
+    notifyListeners();
+
+    try {
+      final res = await ApiClient().dio.get(
+        '/package-schedules/$packageId',
+      );
+
+      if (res.data['success'] == true) {
+        final data = (res.data['data'] as List)
+            .map((e) => ScheduleModel.fromJson(e))
+            .toList();
+
+        _scheduleCache[packageId] = data;
+        return data;
+      }
+    } catch (e) {
+      _error = extractErrorMessage(e);
+    } finally {
+      _scheduleLoading[packageId] = false;
+      notifyListeners();
+    }
+
+    return [];
+  }
+
+  bool isScheduleLoading(int packageId) =>
+      _scheduleLoading[packageId] ?? false;
+
+  List<ScheduleModel> getSchedules(int packageId) =>
+      _scheduleCache[packageId] ?? [];
+
+  // ─── DELETE SCHEDULE ─────────────────────
+  Future<void> deleteSchedule(int id, int packageId) async {
+    try {
+      await ApiClient().dio.delete('/package-schedules/$id');
+
+      _scheduleCache[packageId]
+          ?.removeWhere((e) => e.id == id);
+
+      notifyListeners();
+    } catch (e) {
+      _error = extractErrorMessage(e);
+    }
+  }
+
+  // ─── CRUD SCHEDULE ───────────────────────
+  Future<bool> createSchedule(Map<String, dynamic> data) async {
+    try {
+      final res = await ApiClient().dio.post(
+        '/package-schedules',
+        data: data,
+      );
+      return res.data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> updateSchedule(int id, Map<String, dynamic> data) async {
+    try {
+      final res = await ApiClient().dio.put(
+        '/package-schedules/$id',
+        data: data,
+      );
+      return res.data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // optional: detail package
   Future<PackageModel?> fetchPackageById(int id) async {
     try {
       final res = await ApiClient().dio.get('/packages/$id');

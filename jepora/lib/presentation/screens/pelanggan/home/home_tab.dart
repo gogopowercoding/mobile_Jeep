@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../data/services/auth_service.dart';
-import '../../../data/services/api_services.dart';
-import '../../widgets/common/common_widgets.dart';
-import '../../../core/constants/app_constants.dart';
+import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/data/services/auth_service.dart';
+import 'package:jepora/data/services/api_services.dart';
+import 'package:jepora/presentation/widgets/common/common_widgets.dart';
+import 'package:jepora/core/constants/app_constants.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});

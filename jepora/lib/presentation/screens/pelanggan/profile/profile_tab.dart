@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../data/services/auth_service.dart';
-import '../../widgets/common/common_widgets.dart';
+import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/data/services/auth_service.dart';
+import 'package:jepora/presentation/widgets/common/common_widgets.dart';
 
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});

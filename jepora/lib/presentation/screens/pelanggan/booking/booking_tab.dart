@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../data/services/auth_service.dart';
-import '../../../data/services/api_services.dart';
-import '../../../data/models/models.dart';
-import '../../widgets/common/common_widgets.dart';
+
+import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/data/services/auth_service.dart';
+import 'package:jepora/data/services/api_services.dart';
+import 'package:jepora/data/models/models.dart';
+import 'package:jepora/presentation/widgets/common/common_widgets.dart';
+
 import 'package:intl/intl.dart';
 
 class BookingTab extends StatefulWidget {

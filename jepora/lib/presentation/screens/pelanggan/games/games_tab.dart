@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../widgets/common/common_widgets.dart';
+import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/presentation/widgets/common/common_widgets.dart';
 
 class GamesTab extends StatefulWidget {
   const GamesTab({super.key});
