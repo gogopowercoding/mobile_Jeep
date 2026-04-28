@@ -39,18 +39,7 @@ class _SplashScreenState extends State<SplashScreen>
     final auth = context.read<AuthService>();
     await auth.init();
     if (!mounted) return;
-    if (auth.isLoggedIn) {
-      final role = auth.user?.role;
-      if (role == 'admin') {
-        Navigator.pushReplacementNamed(context, '/admin');
-      } else if (role == 'supir') {
-        Navigator.pushReplacementNamed(context, '/driver');
-      } else {
-        Navigator.pushReplacementNamed(context, '/home');
-      }
-    } else {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+    Navigator.pushReplacementNamed(context, '/login');
   }
  
   @override
