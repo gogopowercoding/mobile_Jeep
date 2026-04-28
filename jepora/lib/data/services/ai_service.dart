@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 
 class AIService {
   // ⚠️ Isi API KEY OpenRouter kamu di sini
-  static const String _apiKey = "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";
+  static const String _apiKey = "ISI API";
 
   static const String _url = "https://openrouter.ai/api/v1/chat/completions";
 
