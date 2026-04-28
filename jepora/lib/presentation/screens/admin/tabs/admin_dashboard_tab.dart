@@ -3,9 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/auth_service.dart';
 import 'package:jepora/data/services/api_services.dart';
+import 'package:jepora/data/models/models.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
-import '../widgets/admin_stat_card.dart';
-import '../widgets/admin_order_card.dart';
 
 class AdminDashboardTab extends StatefulWidget {
   const AdminDashboardTab({super.key});
@@ -33,98 +32,145 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
     final ongoing   = orders.orders.where((o) => o.status == 'ongoing').length;
     final completed = orders.orders.where((o) => o.status == 'completed').length;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: () => context.read<OrderService>().fetchAllOrders(),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(20),
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () => context.read<OrderService>().fetchAllOrders(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Greeting
+            Text('Halo, ${auth.user?.name ?? 'Admin'} 👋',
+              style: AppTextStyles.h3),
+            const Text('Berikut ringkasan aktivitas hari ini',
+              style: AppTextStyles.bodyMuted),
+            const SizedBox(height: 20),
+
+            // Stats
+            const Text('Ringkasan Pesanan', style: AppTextStyles.label),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12, mainAxisSpacing: 12,
+              childAspectRatio: 1.6,
+              children: [
+                _StatCard(label: 'Menunggu', value: '$pending',
+                  color: AppColors.statusPending,
+                  icon: Icons.hourglass_empty_rounded),
+                _StatCard(label: 'Dikonfirmasi', value: '$confirmed',
+                  color: AppColors.statusConfirmed,
+                  icon: Icons.check_circle_outline_rounded),
+                _StatCard(label: 'Berjalan', value: '$ongoing',
+                  color: AppColors.statusOngoing,
+                  icon: Icons.directions_car_rounded),
+                _StatCard(label: 'Selesai', value: '$completed',
+                  color: AppColors.statusCompleted,
+                  icon: Icons.flag_rounded),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+            SectionHeader(title: 'Pesanan Terbaru'),
+            const SizedBox(height: 12),
+
+            if (orders.isLoading)
+              const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            else if (orders.orders.isEmpty)
+              const EmptyState(title: 'Belum ada pesanan', icon: Icons.inbox_outlined)
+            else
+              ...orders.orders.take(5).map((order) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _DashboardOrderCard(order: order),
+              )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String label, value;
+  final Color color;
+  final IconData icon;
+
+  const _StatCard({required this.label, required this.value,
+    required this.color, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2), shape: BoxShape.circle),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(value, style: TextStyle(fontSize: 22,
+                fontWeight: FontWeight.w700, color: color, fontFamily: 'Poppins')),
+              Text(label, style: AppTextStyles.caption),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardOrderCard extends StatelessWidget {
+  final OrderModel order;
+  const _DashboardOrderCard({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.directions_car_rounded,
+              color: AppColors.primary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ─── Greeting ────────────────────────────
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Halo, ${auth.user?.name ?? 'Admin'} 👋',
-                            style: AppTextStyles.h3),
-                          const Text('Dashboard Admin JeepOra',
-                            style: AppTextStyles.bodyMuted),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.admin_panel_settings_rounded,
-                            color: AppColors.primaryDark, size: 16),
-                          SizedBox(width: 4),
-                          Text('Admin', style: TextStyle(
-                            color: AppColors.primaryDark, fontSize: 12,
-                            fontWeight: FontWeight.w600, fontFamily: 'Poppins',
-                          )),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // ─── Stat Cards ──────────────────────────
-                const Text('Ringkasan Pesanan', style: AppTextStyles.label),
-                const SizedBox(height: 12),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.5,
-                  children: [
-                    AdminStatCard(label: 'Menunggu', value: '$pending',
-                      color: AppColors.statusPending, icon: Icons.hourglass_empty_rounded),
-                    AdminStatCard(label: 'Dikonfirmasi', value: '$confirmed',
-                      color: AppColors.statusConfirmed, icon: Icons.check_circle_outline_rounded),
-                    AdminStatCard(label: 'Berjalan', value: '$ongoing',
-                      color: AppColors.statusOngoing, icon: Icons.directions_car_rounded),
-                    AdminStatCard(label: 'Selesai', value: '$completed',
-                      color: AppColors.statusCompleted, icon: Icons.flag_rounded),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // ─── Recent Orders ───────────────────────
-                SectionHeader(
-                  title: 'Pesanan Terbaru',
-                  actionText: 'Lihat Semua',
-                  onAction: () {},
-                ),
-                const SizedBox(height: 12),
-
-                if (orders.isLoading)
-                  const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                else if (orders.orders.isEmpty)
-                  const EmptyState(title: 'Belum ada pesanan', icon: Icons.inbox_outlined)
-                else
-                  ...orders.orders.take(5).map((order) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: AdminOrderCard(order: order),
-                  )),
+                Text('#${order.id} — ${order.packageName ?? "-"}',
+                  style: AppTextStyles.label),
+                Text(order.bookingDate, style: AppTextStyles.caption),
               ],
             ),
           ),
-        ),
+          StatusBadge(status: order.status),
+        ],
       ),
     );
   }

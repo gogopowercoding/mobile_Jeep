@@ -4,24 +4,25 @@ import 'core/theme/app_theme.dart';
 import 'core/network/api_client.dart';
 import 'data/services/auth_service.dart';
 import 'data/services/api_services.dart';
+import 'data/services/admin_notification_service.dart';         // ← tambah
 import 'presentation/screens/auth/splash_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/pelanggan/main_screen.dart';
 import 'presentation/screens/admin/admin_screen.dart';
-import 'presentation/screens/admin/tabs/admin_package_form_screen.dart';   
+import 'presentation/screens/admin/tabs/admin_package_form_screen.dart';
 import 'presentation/screens/driver/driver_screen.dart';
 import 'presentation/screens/pelanggan/booking/booking_tab.dart';
-import 'presentation/screens/pelanggan/booking/upload_payment_screen.dart';     
-import 'presentation/screens/pelanggan/booking/driver_tracking_screen.dart';    
-import 'presentation/screens/pelanggan/package/package_detail_screen.dart';     
+import 'presentation/screens/pelanggan/booking/upload_payment_screen.dart';
+import 'presentation/screens/pelanggan/booking/driver_tracking_screen.dart';
+import 'presentation/screens/pelanggan/package/package_detail_screen.dart';
 import 'presentation/screens/pelanggan/package/time_zone_converter_screen.dart';
-import 'presentation/screens/pelanggan/chatbot/chatbot_screen.dart';            
+import 'presentation/screens/pelanggan/chatbot/chatbot_screen.dart';
 import 'presentation/screens/pelanggan/profile/edit_profile_screen.dart';
 import 'presentation/screens/pelanggan/profile/notifications_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id', null);
   ApiClient().init();
@@ -39,6 +40,7 @@ class JeepOraApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PackageService()),
         ChangeNotifierProvider(create: (_) => OrderService()),
         ChangeNotifierProvider(create: (_) => NotificationService()),
+        ChangeNotifierProvider(create: (_) => AdminNotificationService()), // ← tambah
       ],
       child: MaterialApp(
         title: 'JeepOra',
@@ -54,17 +56,16 @@ class JeepOraApp extends StatelessWidget {
           // ── Pelanggan ─────────────────────────────────────────
           '/home':                (_) => const MainScreen(),
           '/create-booking':      (_) => const CreateBookingScreen(),
-          '/order-detail':        (_) => const OrderDetailScreen(),
-          '/upload-payment':      (_) => const UploadPaymentScreen(),       
-          '/driver-tracking':     (_) => const DriverTrackingScreen(),      
-          '/package-detail':      (_) => const PackageDetailScreen(),       
-          '/timezone':            (_) => const TimeZoneConverterScreen(),    
-          '/chatbot':             (_) => const ChatbotScreen(),             
+          '/order-detail':        (_) => const OrderDetailScreen(),         // ← fix
+          '/upload-payment':      (_) => const UploadPaymentScreen(),
+          '/driver-tracking':     (_) => const DriverTrackingScreen(),
+          '/package-detail':      (_) => const PackageDetailScreen(),
+          '/timezone':            (_) => const TimeZoneConverterScreen(),
+          '/chatbot':             (_) => const ChatbotScreen(),
 
           // ── Admin ─────────────────────────────────────────────
           '/admin':               (_) => const AdminScreen(),
-          '/admin/package-form':  (_) => const AdminPackageFormScreen(),    
-
+          '/admin/package-form':  (_) => const AdminPackageFormScreen(),
 
           // ── Supir ─────────────────────────────────────────────
           '/driver':              (_) => const DriverScreen(),
