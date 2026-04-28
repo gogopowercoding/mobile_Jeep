@@ -33,13 +33,12 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthService>();
+    final auth     = context.watch<AuthService>();
     final packages = context.watch<PackageService>();
-    final notifs = context.watch<NotificationService>();
+    final notifs   = context.watch<NotificationService>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      // ── FAB Chatbot ───────────────────────────────────────
       body: SafeArea(
         child: RefreshIndicator(
           color: AppColors.primary,
@@ -56,13 +55,10 @@ class _HomeTabState extends State<HomeTab> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'JeepOra',
+                            const Text('JeepOra',
                               style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                                fontFamily: 'Poppins',
+                                fontSize: 22, fontWeight: FontWeight.w700,
+                                color: AppColors.primary, fontFamily: 'Poppins',
                               ),
                             ),
                           ],
@@ -73,29 +69,22 @@ class _HomeTabState extends State<HomeTab> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.notifications_outlined,
-                                color: AppColors.textPrimary, size: 26),
-                            onPressed: () =>
-                                Navigator.pushNamed(context, '/notifications'),
+                              color: AppColors.textPrimary, size: 26),
+                            onPressed: () => Navigator.pushNamed(context, '/notifications'),
                           ),
                           if (notifs.unreadCount > 0)
                             Positioned(
-                              right: 8,
-                              top: 8,
+                              right: 8, top: 8,
                               child: Container(
-                                width: 16,
-                                height: 16,
+                                width: 16, height: 16,
                                 decoration: const BoxDecoration(
-                                  color: AppColors.error,
-                                  shape: BoxShape.circle,
+                                  color: AppColors.error, shape: BoxShape.circle,
                                 ),
                                 child: Center(
                                   child: Text(
-                                    notifs.unreadCount > 9
-                                        ? '9+'
-                                        : '${notifs.unreadCount}',
+                                    notifs.unreadCount > 9 ? '9+' : '${notifs.unreadCount}',
                                     style: const TextStyle(
-                                      fontSize: 9,
-                                      color: Colors.white,
+                                      fontSize: 9, color: Colors.white,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -130,74 +119,43 @@ class _HomeTabState extends State<HomeTab> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Jelajahi Keindahan',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontFamily: 'Poppins',
-                                  )),
+                                style: TextStyle(
+                                  fontSize: 14, color: Colors.white.withOpacity(0.9),
+                                  fontFamily: 'Poppins',
+                                )),
                               const Text('Dataran Tinggi',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    fontFamily: 'Poppins',
-                                  )),
+                                style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.w700,
+                                  color: Colors.white, fontFamily: 'Poppins',
+                                )),
                               const Text('Dieng',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFFD4FFE8),
-                                    fontFamily: 'Poppins',
-                                  )),
+                                style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.w700,
+                                  color: Color(0xFFD4FFE8), fontFamily: 'Poppins',
+                                )),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
-                                  // Booking button
-                                  GestureDetector(
-                                    onTap: () => Navigator.pushNamed(
-                                        context, '/booking'),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Text('Booking Sekarang',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.primaryDark,
-                                            fontFamily: 'Poppins',
-                                          )),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
                                   // Chatbot shortcut button di hero banner
                                   GestureDetector(
-                                    onTap: () => Navigator.pushNamed(
-                                        context, '/chatbot'),
+                                    onTap: () => Navigator.pushNamed(context, '/chatbot'),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                       decoration: BoxDecoration(
                                         color: Colors.white24,
                                         borderRadius: BorderRadius.circular(10),
-                                        border:
-                                            Border.all(color: Colors.white38),
+                                        border: Border.all(color: Colors.white38),
                                       ),
                                       child: const Row(
                                         children: [
                                           Icon(Icons.smart_toy_rounded,
-                                              color: Colors.white, size: 14),
+                                            color: Colors.white, size: 14),
                                           SizedBox(width: 4),
-                                          Text('',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.white,
-                                                fontFamily: 'Poppins',
-                                              )),
+                                          Text('Tanya AI',
+                                            style: TextStyle(
+                                              fontSize: 12, fontWeight: FontWeight.w600,
+                                              color: Colors.white, fontFamily: 'Poppins',
+                                            )),
                                         ],
                                       ),
                                     ),
@@ -208,8 +166,7 @@ class _HomeTabState extends State<HomeTab> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.terrain_rounded,
-                            size: 70, color: Colors.white24),
+                        const Icon(Icons.terrain_rounded, size: 70, color: Colors.white24),
                       ],
                     ),
                   ),
@@ -222,25 +179,42 @@ class _HomeTabState extends State<HomeTab> {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                   child: TextField(
                     controller: _searchCtrl,
+                    style: const TextStyle(
+                      fontSize: 14, fontFamily: 'Poppins', color: AppColors.textPrimary),
                     decoration: InputDecoration(
-                      hintText: 'Pencarian',
-                      prefixIcon: const Icon(Icons.search_rounded,
-                          color: AppColors.textHint, size: 20),
+                      hintText: 'Pencarian paket wisata...',
+                      hintStyle: const TextStyle(
+                        fontSize: 14, fontFamily: 'Poppins', color: AppColors.textHint),
+                      prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
                       suffixIcon: _searchCtrl.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
+                              icon: const Icon(Icons.clear, size: 18, color: AppColors.textHint),
                               onPressed: () {
                                 _searchCtrl.clear();
                                 context.read<PackageService>().fetchPackages();
                               },
                             )
                           : null,
+                      filled: true,
+                      fillColor: const Color(0xFFE8F5EE),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFB7DFCB), width: 1),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFB7DFCB), width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                     onSubmitted: (v) =>
                         context.read<PackageService>().fetchPackages(search: v),
                     onChanged: (v) {
-                      if (v.isEmpty)
-                        context.read<PackageService>().fetchPackages();
+                      if (v.isEmpty) context.read<PackageService>().fetchPackages();
                       setState(() {});
                     },
                   ),
@@ -253,24 +227,24 @@ class _HomeTabState extends State<HomeTab> {
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
                   child: SectionHeader(
                     title: 'Paket Wisata',
-                    actionText: 'View all',
                     onAction: () => Navigator.pushNamed(context, '/packages'),
                   ),
                 ),
               ),
 
               if (packages.isLoading)
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 220,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: 3,
-                      itemBuilder: (_, __) => Padding(
-                        padding: const EdgeInsets.only(right: 14),
-                        child: ShimmerBox(width: 160, height: 220, radius: 16),
-                      ),
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverGrid(
+                    delegate: SliverChildBuilderDelegate(
+                      (_, __) => ShimmerBox(width: double.infinity, height: 220, radius: 16),
+                      childCount: 4,
+                    ),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                      childAspectRatio: 0.72,
                     ),
                   ),
                 )
@@ -283,39 +257,39 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                 )
               else
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 230,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: packages.packages.length,
-                      itemBuilder: (ctx, i) {
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverGrid(
+                    delegate: SliverChildBuilderDelegate(
+                      (ctx, i) {
                         final pkg = packages.packages[i];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 14),
-                          child: SizedBox(
-                            width: 160,
-                            child: PackageCard(
-                              name: pkg.name,
-                              price: pkg.price,
-                              duration: pkg.duration,
-                              image: pkg.image,
-                              onTap: () => Navigator.pushNamed(
-                                context,
-                                '/package-detail',
-                                arguments: pkg.id,
-                              ),
-                            ),
+                        return PackageCard(
+                          name: pkg.name,
+                          price: pkg.price,
+                          duration: pkg.duration,
+                          image: pkg.image,
+                          onTap: () => Navigator.pushNamed(
+                            ctx, '/package-detail',
+                            arguments: pkg.id,
+                          ),
+                          onBook: () => Navigator.pushNamed(
+                            ctx, '/create-booking',
+                            arguments: pkg.id,
                           ),
                         );
                       },
+                      childCount: packages.packages.length,
+                    ),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                      childAspectRatio: 0.72,
                     ),
                   ),
                 ),
 
-              const SliverToBoxAdapter(
-                  child: SizedBox(height: 80)), // ruang FAB
+              const SliverToBoxAdapter(child: SizedBox(height: 80)), // ruang FAB
             ],
           ),
         ),
