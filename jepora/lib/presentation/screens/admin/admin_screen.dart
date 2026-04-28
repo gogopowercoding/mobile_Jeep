@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/data/services/admin_notification_service.dart';
+import 'package:jepora/presentation/widgets/common/app_bottom_navbar.dart';
+import 'tabs/admin_notifications_screen.dart';
 import 'tabs/admin_dashboard_tab.dart';
 import 'tabs/admin_orders_tab.dart';
 import 'tabs/admin_packages_tab.dart';
 import 'tabs/admin_profile_tab.dart';
-import 'widgets/admin_nav_item.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -16,7 +19,7 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _tabs = const [
+  static const _tabs = [
     AdminDashboardTab(),
     AdminOrdersTab(),
     AdminPackagesTab(),
@@ -24,54 +27,98 @@ class _AdminScreenState extends State<AdminScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final svc = context.read<AdminNotificationService>();
+      svc.fetchNotifications();
+      svc.startPolling();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final notifSvc = context.watch<AdminNotificationService>();
+    final unread   = notifSvc.unreadCount;
+
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _tabs),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                AdminNavItem(
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard',
-                  isActive: _currentIndex == 0,
-                  onTap: () => setState(() => _currentIndex = 0),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('JeepOra Admin',
+          style: TextStyle(
+            fontSize: 18, fontWeight: FontWeight.w700,
+            color: AppColors.primary, fontFamily: 'Poppins',
+          )),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChangeNotifierProvider.value(
+                    value: notifSvc,
+                    child: const AdminNotificationsScreen(),
+                  ),
                 ),
-                AdminNavItem(
-                  icon: Icons.list_alt_rounded,
-                  label: 'Pesanan',
-                  isActive: _currentIndex == 1,
-                  onTap: () => setState(() => _currentIndex = 1),
-                ),
-                AdminNavItem(
-                  icon: Icons.landscape_rounded,
-                  label: 'Paket',
-                  isActive: _currentIndex == 2,
-                  onTap: () => setState(() => _currentIndex = 2),
-                ),
-                AdminNavItem(
-                  icon: Icons.person_rounded,
-                  label: 'Profil',
-                  isActive: _currentIndex == 3,
-                  onTap: () => setState(() => _currentIndex = 3),
-                ),
-              ],
+              ).then((_) => notifSvc.fetchNotifications()),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: unread > 0
+                          ? AppColors.error.withOpacity(0.08)
+                          : AppColors.primaryLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      unread > 0
+                          ? Icons.notifications_active_rounded
+                          : Icons.notifications_outlined,
+                      color: unread > 0 ? AppColors.error : AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      right: -2, top: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                            minWidth: 18, minHeight: 18),
+                        child: Text(
+                          unread > 99 ? '99+' : '$unread',
+                          style: const TextStyle(
+                            color: Colors.white, fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Poppins',
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
+        ],
+      ),
+      body: IndexedStack(index: _currentIndex, children: _tabs),
+      bottomNavigationBar: AppBottomNavBar(
+        currentIndex: _currentIndex,
+        items: const [
+          NavItemData(icon: Icons.dashboard_rounded,  label: 'Dashboard'),
+          NavItemData(icon: Icons.list_alt_rounded,   label: 'Pesanan'),
+          NavItemData(icon: Icons.landscape_rounded,  label: 'Paket'),
+          NavItemData(icon: Icons.person_rounded,     label: 'Profil'),
+        ],
+        onTap: (i) => setState(() => _currentIndex = i),
       ),
     );
   }

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Model untuk setiap item navbar
 class NavItemData {
   final IconData icon;
   final String label;
+  final int badgeCount;
 
-  const NavItemData({required this.icon, required this.label});
+  const NavItemData({
+    required this.icon,
+    required this.label,
+    this.badgeCount = 0,
+  });
 }
 
-/// Reusable bottom navbar untuk semua role
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final List<NavItemData> items;
@@ -41,36 +44,71 @@ class AppBottomNavBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (i) {
-              final item  = items[i];
+              final item   = items[i];
               final active = currentIndex == i;
               return GestureDetector(
                 onTap: () => onTap(i),
                 behavior: HitTestBehavior.opaque,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 6),
                   decoration: BoxDecoration(
-                    color: active ? AppColors.primaryLight : Colors.transparent,
+                    color: active
+                        ? AppColors.primaryLight
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        item.icon,
-                        size: 22,
-                        color: active ? AppColors.primary : AppColors.textHint,
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(item.icon,
+                            size: 22,
+                            color: active
+                                ? AppColors.primary
+                                : AppColors.textHint),
+                          if (item.badgeCount > 0)
+                            Positioned(
+                              right: -6, top: -4,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.error,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16, minHeight: 16),
+                                child: Text(
+                                  item.badgeCount > 99
+                                      ? '99+'
+                                      : '${item.badgeCount}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        item.label,
+                      Text(item.label,
                         style: TextStyle(
                           fontSize: 11,
                           fontFamily: 'Poppins',
-                          fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                          color: active ? AppColors.primary : AppColors.textHint,
-                        ),
-                      ),
+                          fontWeight: active
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: active
+                              ? AppColors.primary
+                              : AppColors.textHint,
+                        )),
                     ],
                   ),
                 ),
