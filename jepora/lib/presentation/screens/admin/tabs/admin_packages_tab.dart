@@ -33,12 +33,18 @@ class _AdminPackagesTabState extends State<AdminPackagesTab> {
 
     if (!isExpanded &&
         context.read<PackageService>().getSchedules(packageId).isEmpty) {
-      await context.read<PackageService>().fetchSchedules(packageId);
+      await _refreshSchedules(packageId);
     }
   }
 
   Future<void> _refreshSchedules(int packageId) async {
-    await context.read<PackageService>().fetchSchedules(packageId);
+    // fetchPackageById sudah include schedules dalam response
+    final svc = context.read<PackageService>();
+    final pkg = await svc.fetchPackageById(packageId);
+    if (pkg != null && pkg.schedules != null) {
+      svc.scheduleCache[packageId] = pkg.schedules!;
+      svc.notifyListeners();
+    }
   }
 
   // ── Navigasi paket ─────────────────────────────────────────
@@ -88,34 +94,6 @@ class _AdminPackagesTabState extends State<AdminPackagesTab> {
     }
   }
 
-  // ── Dialog hapus jadwal ────────────────────────────────────
-  Future<void> _confirmDeleteSchedule(ScheduleModel s, int packageId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Jadwal?',
-            style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w700)),
-        content: Text('Yakin ingin menghapus "${s.activity}"?',
-            style: const TextStyle(fontFamily: 'Poppins')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal',
-                style: TextStyle(color: AppColors.textSecondary, fontFamily: 'Poppins')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus',
-                style: TextStyle(color: AppColors.error, fontFamily: 'Poppins')),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      await context.read<PackageService>().deleteSchedule(s.id, packageId);
-    }
-  }
 
   String _shortTime(String t) => t.length >= 5 ? t.substring(0, 5) : t;
 
@@ -296,54 +274,9 @@ class _AdminPackagesTabState extends State<AdminPackagesTab> {
                                               ),
                                             ),
                                           ),
-                                          IconButton(
-                                            icon: const Icon(Icons.edit_outlined,
-                                                size: 18, color: AppColors.primary),
-                                            tooltip: 'Edit Jadwal',
-                                            onPressed: () async {
-                                              final result =
-                                                  await Navigator.pushNamed(
-                                                context,
-                                                '/admin-schedule-form',
-                                                arguments: {
-                                                  'packageId': pkg.id,
-                                                  'schedule': s,
-                                                },
-                                              );
-                                              if (result == true) {
-                                                _refreshSchedules(pkg.id);
-                                              }
-                                            },
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.delete_outline,
-                                                size: 18, color: AppColors.error),
-                                            tooltip: 'Hapus Jadwal',
-                                            onPressed: () =>
-                                                _confirmDeleteSchedule(s, pkg.id),
-                                          ),
                                         ],
                                       ),
                                     )),
-
-                              const SizedBox(height: 4),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  icon: const Icon(Icons.add, size: 16),
-                                  label: const Text('Tambah Jadwal',
-                                      style: TextStyle(
-                                          fontFamily: 'Poppins', fontSize: 13)),
-                                  onPressed: () async {
-                                    final result = await Navigator.pushNamed(
-                                      context,
-                                      '/admin-schedule-form',
-                                      arguments: {'packageId': pkg.id},
-                                    );
-                                    if (result == true) _refreshSchedules(pkg.id);
-                                  },
-                                ),
-                              ),
                             ],
                           ],
                         ),

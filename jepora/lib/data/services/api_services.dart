@@ -81,7 +81,7 @@ class PackageService extends ChangeNotifier {
   // ─── DELETE SCHEDULE ─────────────────────
   Future<void> deleteSchedule(int id, int packageId) async {
     try {
-      await ApiClient().dio.delete('/package-schedules/$id');
+      await ApiClient().dio.delete('/schedules/$id');
 
       _scheduleCache[packageId]
           ?.removeWhere((e) => e.id == id);
@@ -95,8 +95,9 @@ class PackageService extends ChangeNotifier {
   // ─── CRUD SCHEDULE ───────────────────────
   Future<bool> createSchedule(Map<String, dynamic> data) async {
     try {
+      final packageId = data['package_id'];
       final res = await ApiClient().dio.post(
-        '/package-schedules',
+        '/packages/$packageId/schedules',
         data: data,
       );
       return res.data['success'] == true;
@@ -108,7 +109,7 @@ class PackageService extends ChangeNotifier {
   Future<bool> updateSchedule(int id, Map<String, dynamic> data) async {
     try {
       final res = await ApiClient().dio.put(
-        '/package-schedules/$id',
+        '/schedules/$id',
         data: data,
       );
       return res.data['success'] == true;
