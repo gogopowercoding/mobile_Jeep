@@ -86,6 +86,14 @@ class _OrderCard extends StatelessWidget {
       (order.status == 'confirmed' || order.status == 'ongoing') &&
       order.driverName != null;
 
+  String _formatDate(String raw) {
+    try {
+      return DateFormat('dd MMM yyyy', 'id').format(DateTime.parse(raw).toLocal());
+    } catch (_) {
+      return raw;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -138,7 +146,7 @@ class _OrderCard extends StatelessWidget {
                 _InfoItem(
                   icon: Icons.calendar_today_rounded,
                   label: 'Tanggal',
-                  value: order.bookingDate,
+                  value: _formatDate(order.bookingDate),
                 ),
                 const SizedBox(width: 20),
                 _InfoItem(
@@ -301,13 +309,31 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   bool _gettingLocation = false;
   String? _selectedCurrency = 'IDR';
   double? _convertedPrice;
+  bool _isConvertingCurrency = false;
+  bool _currencyExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PackageService>().fetchPackages();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<PackageService>().fetchPackages();
+      // Setelah packages load, trigger konversi jika ada paket pre-selected
+      if (_selectedPkg != null && _selectedCurrency != 'IDR' && mounted) {
+        final pkg = context.read<PackageService>().packages
+            .where((p) => p.id == _selectedPkg)
+            .firstOrNull;
+        if (pkg != null) _convertCurrency(pkg.price, _selectedCurrency!);
+      }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final arg = ModalRoute.of(context)?.settings.arguments;
+    if (arg != null && _selectedPkg == null) {
+      setState(() => _selectedPkg = arg as int);
+    }
   }
 
   Future<void> _getLocation() async {
@@ -337,16 +363,20 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     }
   }
 
-  Future<void> _convertCurrency(double price) async {
-    if (_selectedCurrency == 'IDR') {
+  Future<void> _convertCurrency(double price, String currency) async {
+    if (currency == 'IDR') {
       setState(() => _convertedPrice = null);
       return;
     }
+    setState(() => _isConvertingCurrency = true);
     final result = await CurrencyService.convert(
-      amount: price, from: 'IDR', to: _selectedCurrency!,
+      amount: price, from: 'IDR', to: currency,
     );
-    if (result != null && mounted) {
-      setState(() => _convertedPrice = result['converted']);
+    if (mounted) {
+      setState(() {
+        _convertedPrice = result != null ? (result['converted'] as num?)?.toDouble() : null;
+        _isConvertingCurrency = false;
+      });
     }
   }
 
@@ -370,10 +400,12 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
 
     if (!mounted) return;
     if (order != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pesanan berhasil dibuat!'), backgroundColor: AppColors.success),
+      // Langsung ke halaman upload bukti bayar
+      Navigator.pushReplacementNamed(
+        context,
+        '/upload-payment',
+        arguments: order.id,
       );
-      Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(orderService.error ?? 'Gagal membuat pesanan'),
@@ -407,33 +439,64 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Pilih Paket Wisata', style: AppTextStyles.label),
+              const Text('Paket Wisata', style: AppTextStyles.label),
               const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.divider, width: 0.5),
+              // Jika paket sudah dipilih (dari halaman detail), tampilkan fixed — tidak bisa diganti
+              if (_selectedPkg != null && selectedPkg != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.4), width: 1.2),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          selectedPkg.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Poppins',
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                // Jika belum ada paket dipilih (masuk manual), tampilkan dropdown
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.divider, width: 0.5),
+                  ),
+                  child: DropdownButtonFormField<int>(
+                    value: _selectedPkg,
+                    hint: const Text('Pilih paket', style: TextStyle(fontFamily: 'Poppins')),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    items: packages.packages.map((p) => DropdownMenuItem(
+                      value: p.id,
+                      child: Text(p.name, style: AppTextStyles.body),
+                    )).toList(),
+                    onChanged: (v) {
+                      setState(() { _selectedPkg = v; _convertedPrice = null; });
+                      if (v != null && _selectedCurrency != null) {
+                        final pkg = packages.packages.firstWhere((p) => p.id == v);
+                        _convertCurrency(pkg.price, _selectedCurrency!);
+                      }
+                    },
+                    validator: (v) => v == null ? 'Pilih paket wisata' : null,
+                  ),
                 ),
-                child: DropdownButtonFormField<int>(
-                  value: _selectedPkg,
-                  hint: const Text('Pilih paket', style: TextStyle(fontFamily: 'Poppins')),
-                  decoration: const InputDecoration(border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16)),
-                  items: packages.packages.map((p) => DropdownMenuItem(
-                    value: p.id,
-                    child: Text(p.name, style: AppTextStyles.body),
-                  )).toList(),
-                  onChanged: (v) {
-                    setState(() { _selectedPkg = v; _convertedPrice = null; });
-                    if (v != null) {
-                      final pkg = packages.packages.firstWhere((p) => p.id == v);
-                      _convertCurrency(pkg.price);
-                    }
-                  },
-                  validator: (v) => v == null ? 'Pilih paket wisata' : null,
-                ),
-              ),
 
               if (selectedPkg != null) ...[
                 const SizedBox(height: 12),
@@ -443,32 +506,121 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                     color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Rp ${selectedPkg.price.toStringAsFixed(0).replaceAllMapped(
-                              RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                              style: AppTextStyles.price),
-                            if (_convertedPrice != null)
-                              Text('≈ $_selectedCurrency ${_convertedPrice!.toStringAsFixed(2)}',
-                                style: AppTextStyles.caption),
-                          ],
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Rp ${selectedPkg.price.toStringAsFixed(0).replaceAllMapped(
+                                    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                                  style: AppTextStyles.price,
+                                ),
+                                const SizedBox(height: 2),
+                                if (_isConvertingCurrency)
+                                  const SizedBox(
+                                    height: 14,
+                                    width: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.5,
+                                      color: AppColors.primary,
+                                    ),
+                                  )
+                                else if (_convertedPrice != null && _selectedCurrency != 'IDR')
+                                  Text(
+                                    '≈ $_selectedCurrency ${_convertedPrice!.toStringAsFixed(2)}',
+                                    style: AppTextStyles.caption,
+                                  ),
+                              ],
+                            ),
+                          ),
+                          // Tombol pilih mata uang
+                          GestureDetector(
+                            onTap: () => setState(() => _currencyExpanded = !_currencyExpanded),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: AppColors.divider),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.currency_exchange_rounded,
+                                      size: 13, color: AppColors.primary),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    _selectedCurrency ?? 'IDR',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      fontFamily: 'Poppins',
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Icon(
+                                    _currencyExpanded
+                                        ? Icons.keyboard_arrow_up_rounded
+                                        : Icons.keyboard_arrow_down_rounded,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Panel pilih mata uang
+                      if (_currencyExpanded) ...[
+                        const SizedBox(height: 10),
+                        const Divider(color: AppColors.divider, height: 1),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          children: ['IDR', 'USD', 'EUR'].map((c) {
+                            final isActive = c == (_selectedCurrency ?? 'IDR');
+                            return GestureDetector(
+                              onTap: () {
+                                final currency = c;
+                                setState(() {
+                                  _selectedCurrency = currency;
+                                  _currencyExpanded = false;
+                                  _convertedPrice = null;
+                                });
+                                _convertCurrency(selectedPkg.price, currency);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isActive ? AppColors.primary : AppColors.surface,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: isActive ? AppColors.primary : AppColors.divider,
+                                  ),
+                                ),
+                                child: Text(
+                                  c,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    fontFamily: 'Poppins',
+                                    color: isActive ? Colors.white : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
-                      ),
-                      DropdownButton<String>(
-                        value: _selectedCurrency,
-                        underline: const SizedBox(),
-                        items: ['IDR', 'USD', 'EUR'].map((c) => DropdownMenuItem(
-                          value: c, child: Text(c, style: AppTextStyles.label),
-                        )).toList(),
-                        onChanged: (v) {
-                          setState(() => _selectedCurrency = v);
-                          if (selectedPkg != null) _convertCurrency(selectedPkg.price);
-                        },
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -571,6 +723,243 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+// ─── ORDER DETAIL SCREEN ──────────────────────────────────────
+/// Route: '/order-detail', arguments: int orderId
+class OrderDetailScreen extends StatefulWidget {
+  const OrderDetailScreen({super.key});
+
+  @override
+  State<OrderDetailScreen> createState() => _OrderDetailScreenState();
+}
+
+class _OrderDetailScreenState extends State<OrderDetailScreen> {
+  OrderModel? _order;
+  bool _isLoading = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final id = ModalRoute.of(context)?.settings.arguments as int?;
+    if (id != null) _load(id);
+  }
+
+  Future<void> _load(int id) async {
+    setState(() => _isLoading = true);
+    final orders = context.read<OrderService>().orders;
+    // Cari dari cache dulu
+    final cached = orders.where((o) => o.id == id).firstOrNull;
+    if (cached != null) {
+      setState(() { _order = cached; _isLoading = false; });
+      return;
+    }
+    // Fallback: re-fetch semua pesanan
+    final auth = context.read<AuthService>();
+    if (auth.user != null) {
+      await context.read<OrderService>().fetchOrders(auth.user!.id);
+    }
+    if (!mounted) return;
+    final found = context.read<OrderService>().orders.where((o) => o.id == id).firstOrNull;
+    setState(() { _order = found; _isLoading = false; });
+  }
+
+  String _formatDate(String raw) {
+    try {
+      return DateFormat('EEEE, dd MMMM yyyy', 'id').format(DateTime.parse(raw).toLocal());
+    } catch (_) { return raw; }
+  }
+
+  String _formatPrice(double p) =>
+      'Rp ${p.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Detail Pesanan')),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : _order == null
+              ? const Center(child: Text('Pesanan tidak ditemukan'))
+              : _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    final o = _order!;
+    final showUpload = o.status == 'pending' && o.paymentStatus != 'paid';
+    final showTrack  = (o.status == 'confirmed' || o.status == 'ongoing') && o.driverName != null;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header status ─────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.divider, width: 0.5),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.directions_car_rounded,
+                      color: AppColors.primary, size: 26),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(o.packageName ?? 'Paket Wisata',
+                          style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700,
+                            fontFamily: 'Poppins', color: AppColors.textPrimary,
+                          )),
+                      const SizedBox(height: 2),
+                      Text('Order #${o.id}', style: AppTextStyles.caption),
+                    ],
+                  ),
+                ),
+                StatusBadge(status: o.status),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Info ──────────────────────────────────────────
+          _DetailSection(title: 'Informasi Booking', items: [
+            _DetailItem(icon: Icons.calendar_today_rounded, label: 'Tanggal Booking', value: _formatDate(o.bookingDate)),
+            _DetailItem(icon: Icons.payments_outlined,      label: 'Total Harga',     value: _formatPrice(o.totalPrice)),
+            _DetailItem(icon: Icons.credit_card_rounded,    label: 'Status Bayar',    value: _paymentLabel(o.paymentStatus)),
+            if (o.notes != null && o.notes!.isNotEmpty)
+              _DetailItem(icon: Icons.notes_rounded, label: 'Catatan', value: o.notes!),
+          ]),
+
+          if (o.driverName != null) ...[
+            const SizedBox(height: 16),
+            _DetailSection(title: 'Info Supir', items: [
+              _DetailItem(icon: Icons.person_rounded,  label: 'Nama Supir',  value: o.driverName!),
+              if (o.driverPhone != null)
+                _DetailItem(icon: Icons.phone_rounded, label: 'Telepon',     value: o.driverPhone!),
+            ]),
+          ],
+
+          const SizedBox(height: 24),
+
+          // ── Tombol aksi ───────────────────────────────────
+          if (showUpload)
+            PrimaryButton(
+              text: 'Upload Bukti Pembayaran',
+              icon: Icons.upload_rounded,
+              onPressed: () => Navigator.pushNamed(
+                context, '/upload-payment', arguments: o.id,
+              ),
+            ),
+
+          if (showTrack) ...[
+            if (showUpload) const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pushNamed(
+                context, '/driver-tracking', arguments: o.id,
+              ),
+              icon: const Icon(Icons.my_location_rounded, size: 18),
+              label: const Text('Lacak Supir'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  String _paymentLabel(String? status) {
+    switch (status) {
+      case 'paid':    return 'Lunas ✓';
+      case 'pending': return 'Menunggu Pembayaran';
+      default:        return status ?? '-';
+    }
+  }
+}
+
+// ── Detail Section ──────────────────────────────────────────
+class _DetailSection extends StatelessWidget {
+  final String title;
+  final List<_DetailItem> items;
+  const _DetailSection({required this.title, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w700,
+            fontFamily: 'Poppins', color: AppColors.textPrimary,
+          )),
+          const SizedBox(height: 12),
+          const Divider(color: AppColors.divider, height: 1),
+          const SizedBox(height: 12),
+          ...items,
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _DetailItem({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppTextStyles.caption),
+                const SizedBox(height: 2),
+                Text(value, style: AppTextStyles.label),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
