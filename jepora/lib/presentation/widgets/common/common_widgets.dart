@@ -160,6 +160,7 @@ class PackageCard extends StatelessWidget {
   final int duration;
   final String? image;
   final VoidCallback onTap;
+  final VoidCallback? onBook;  // langsung ke halaman booking
 
   const PackageCard({
     super.key,
@@ -168,6 +169,7 @@ class PackageCard extends StatelessWidget {
     required this.duration,
     this.image,
     required this.onTap,
+    this.onBook,
   });
 
   @override
@@ -188,14 +190,14 @@ class PackageCard extends StatelessWidget {
               child: image != null
                   ? Image.network(
                       '${AppConstants.baseUrl.replaceAll('/api', '')}/uploads/$image',
-                      height: 110, width: double.infinity,
+                      height: 100, width: double.infinity,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => _placeholderImage(),
                     )
                   : _placeholderImage(),
             ),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -204,18 +206,44 @@ class PackageCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
-                    'Rp ${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                    _formatPrice(price),
                     style: AppTextStyles.price,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Row(
                     children: [
                       const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
-                      Text('$duration jam', style: AppTextStyles.caption),
+                      Text('${duration} jam', style: AppTextStyles.caption),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Tombol Booking
+                  SizedBox(
+                    width: double.infinity,
+                    height: 32,
+                    child: ElevatedButton(
+                      onPressed: onBook ?? onTap,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Booking',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -224,6 +252,11 @@ class PackageCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatPrice(double p) {
+    return 'Rp ' + p.toStringAsFixed(0)
+        .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => m[1]! + '.');
   }
 
   Widget _placeholderImage() => Container(

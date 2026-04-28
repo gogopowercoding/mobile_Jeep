@@ -81,7 +81,7 @@ class PackageService extends ChangeNotifier {
   // ─── DELETE SCHEDULE ─────────────────────
   Future<void> deleteSchedule(int id, int packageId) async {
     try {
-      await ApiClient().dio.delete('/schedules/$id');
+      await ApiClient().dio.delete('/package-schedules/$id');
 
       _scheduleCache[packageId]
           ?.removeWhere((e) => e.id == id);
@@ -95,9 +95,8 @@ class PackageService extends ChangeNotifier {
   // ─── CRUD SCHEDULE ───────────────────────
   Future<bool> createSchedule(Map<String, dynamic> data) async {
     try {
-      final packageId = data['package_id'];
       final res = await ApiClient().dio.post(
-        '/packages/$packageId/schedules',
+        '/package-schedules',
         data: data,
       );
       return res.data['success'] == true;
@@ -109,7 +108,7 @@ class PackageService extends ChangeNotifier {
   Future<bool> updateSchedule(int id, Map<String, dynamic> data) async {
     try {
       final res = await ApiClient().dio.put(
-        '/schedules/$id',
+        '/package-schedules/$id',
         data: data,
       );
       return res.data['success'] == true;
@@ -190,6 +189,8 @@ class OrderService extends ChangeNotifier {
     double? latitude,
     double? longitude,
     String? notes,
+    int? voucherId,
+    double? discount,
   }) async {
     _isLoading = true;
     _error = null;
@@ -198,9 +199,11 @@ class OrderService extends ChangeNotifier {
       final res = await ApiClient().dio.post('/orders', data: {
         'package_id':   packageId,
         'booking_date': bookingDate,
-        if (latitude != null)  'latitude':  latitude,
-        if (longitude != null) 'longitude': longitude,
-        if (notes != null)     'notes':     notes,
+        if (latitude != null)   'latitude':   latitude,
+        if (longitude != null)  'longitude':  longitude,
+        if (notes != null)      'notes':      notes,
+        if (voucherId != null)  'voucher_id': voucherId,
+        if (discount != null)   'discount':   discount,
       });
       if (res.data['success'] == true) {
         return OrderModel.fromJson(res.data['data']);
