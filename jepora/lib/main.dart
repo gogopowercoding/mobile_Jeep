@@ -54,6 +54,7 @@ class JeepOraApp extends StatelessWidget {
           // ── Pelanggan ─────────────────────────────────────────
           '/home':                (_) => const MainScreen(),
           '/create-booking':      (_) => const CreateBookingScreen(),
+          '/order-detail':        (_) => const OrderDetailScreen(),
           '/upload-payment':      (_) => const UploadPaymentScreen(),       
           '/driver-tracking':     (_) => const DriverTrackingScreen(),      
           '/package-detail':      (_) => const PackageDetailScreen(),       
