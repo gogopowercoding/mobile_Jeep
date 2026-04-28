@@ -31,12 +31,33 @@ const getAllPackages = async (req, res, next) => {
  */
 const getPackageById = async (req, res, next) => {
   try {
+    // 🔹 Ambil data package
     const [rows] = await db.query(
       'SELECT * FROM packages WHERE id = ? AND is_active = 1',
       [req.params.id]
     );
-    if (rows.length === 0) return next(createError('Paket tidak ditemukan', 404));
-    return sendSuccess(res, rows[0]);
+
+    if (rows.length === 0) {
+      return next(createError('Paket tidak ditemukan', 404));
+    }
+
+    const packageData = rows[0];
+
+    // 🔹 Ambil schedule berdasarkan package
+    const [schedules] = await db.query(
+      `SELECT id, day_number, start_time, end_time, activity, is_optional, sort_order
+       FROM package_schedules
+       WHERE package_id = ?
+       ORDER BY day_number ASC, start_time ASC`,
+      [req.params.id]
+    );
+
+    // 🔹 Gabungkan
+    return sendSuccess(res, {
+      ...packageData,
+      schedules
+    });
+
   } catch (err) {
     next(err);
   }

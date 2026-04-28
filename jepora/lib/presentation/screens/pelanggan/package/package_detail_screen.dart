@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../data/services/api_services.dart';
-import '../../../data/models/models.dart';
-import '../../widgets/common/common_widgets.dart';
+import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/data/services/api_services.dart';
+import 'package:jepora/data/models/models.dart';
+import 'package:jepora/presentation/widgets/common/common_widgets.dart';
+import 'package:jepora/presentation/widgets/common/package_itinerary_widget.dart';
 
 /// Screen detail paket wisata
 /// Route: '/package-detail', arguments: int packageId
@@ -176,6 +177,21 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                   _FacilityGrid(),
 
                   const SizedBox(height: 20),
+
+                  const Text(
+                    'Jadwal Perjalanan',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  PackageItineraryWidget(
+                    schedules: pkg.schedules ?? [],
+                  ),
 
                   // Syarat & ketentuan
                   Container(

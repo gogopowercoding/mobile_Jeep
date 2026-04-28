@@ -7,21 +7,24 @@ import 'data/services/api_services.dart';
 import 'presentation/screens/auth/splash_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/register_screen.dart';
-import 'presentation/screens/main_screen.dart';
+import 'presentation/screens/pelanggan/main_screen.dart';
 import 'presentation/screens/admin/admin_screen.dart';
-import 'presentation/screens/admin/admin_package_form_screen.dart';   // ✅ BARU
+import 'presentation/screens/admin/admin_package_form_screen.dart';   
 import 'presentation/screens/driver/driver_screen.dart';
-import 'presentation/screens/booking/booking_tab.dart';
-import 'presentation/screens/booking/upload_payment_screen.dart';     // ✅ BARU
-import 'presentation/screens/booking/driver_tracking_screen.dart';    // ✅ BARU
-import 'presentation/screens/package/package_detail_screen.dart';     // ✅ BARU
-import 'presentation/screens/package/time_zone_converter_screen.dart';// ✅ BARU
-import 'presentation/screens/chatbot/chatbot_screen.dart';            // ✅ BARU (updated)
-import 'presentation/screens/profile/edit_profile_screen.dart';
-import 'presentation/screens/profile/notifications_screen.dart';
+import 'presentation/screens/pelanggan/booking/booking_tab.dart';
+import 'presentation/screens/pelanggan/booking/upload_payment_screen.dart';     
+import 'presentation/screens/pelanggan/booking/driver_tracking_screen.dart';    
+import 'presentation/screens/pelanggan/package/package_detail_screen.dart';     
+import 'presentation/screens/pelanggan/package/time_zone_converter_screen.dart';
+import 'presentation/screens/pelanggan/chatbot/chatbot_screen.dart';            
+import 'presentation/screens/pelanggan/profile/edit_profile_screen.dart';
+import 'presentation/screens/pelanggan/profile/notifications_screen.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'presentation/screens/admin/admin_schedule_form.dart';
 
-void main() {
+void main() async{
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('id', null);
   ApiClient().init();
   runApp(const JeepOraApp());
 }
@@ -52,15 +55,16 @@ class JeepOraApp extends StatelessWidget {
           // ── Pelanggan ─────────────────────────────────────────
           '/home':                (_) => const MainScreen(),
           '/create-booking':      (_) => const CreateBookingScreen(),
-          '/upload-payment':      (_) => const UploadPaymentScreen(),       // ✅ BARU
-          '/driver-tracking':     (_) => const DriverTrackingScreen(),      // ✅ BARU
-          '/package-detail':      (_) => const PackageDetailScreen(),       // ✅ BARU
-          '/timezone':            (_) => const TimeZoneConverterScreen(),    // ✅ BARU
-          '/chatbot':             (_) => const ChatbotScreen(),              // ✅ BARU
+          '/upload-payment':      (_) => const UploadPaymentScreen(),       
+          '/driver-tracking':     (_) => const DriverTrackingScreen(),      
+          '/package-detail':      (_) => const PackageDetailScreen(),       
+          '/timezone':            (_) => const TimeZoneConverterScreen(),    
+          '/chatbot':             (_) => const ChatbotScreen(),             
 
           // ── Admin ─────────────────────────────────────────────
           '/admin':               (_) => const AdminScreen(),
-          '/admin/package-form':  (_) => const AdminPackageFormScreen(),    // ✅ BARU
+          '/admin/package-form':  (_) => const AdminPackageFormScreen(),    
+          '/admin-schedule-form': (c) => const AdminScheduleForm(),
 
           // ── Supir ─────────────────────────────────────────────
           '/driver':              (_) => const DriverScreen(),

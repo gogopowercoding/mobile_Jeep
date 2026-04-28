@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme/app_theme.dart';
-import '../../data/services/auth_service.dart';
-import '../../data/services/api_services.dart';
+import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/data/services/auth_service.dart';
+import 'package:jepora/data/services/api_services.dart';
 import 'home/home_tab.dart';
 import 'booking/booking_tab.dart';
 import 'games/games_tab.dart';

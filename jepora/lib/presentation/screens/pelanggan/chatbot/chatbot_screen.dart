@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../data/services/ai_service.dart';
+import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/data/services/ai_service.dart';
 import 'chatbot_service.dart';
 
 class ChatbotScreen extends StatefulWidget {

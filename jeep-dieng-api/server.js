@@ -35,6 +35,7 @@ app.use('/api/packages',      packageRoutes);
 app.use('/api/orders',        orderRoutes);
 app.use('/api/payments',      paymentRouter);
 app.use('/api/notifications', notificationRouter);
+app.use('/api', require('./routes/packageSchedule'));
 
 // ─── Currency convert shortcut ────────────────────────────────
 // GET /api/convert?amount=350000&from=IDR&to=USD
