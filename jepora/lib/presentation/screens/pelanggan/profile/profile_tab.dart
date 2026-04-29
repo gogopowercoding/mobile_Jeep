@@ -131,16 +131,6 @@ class ProfileTab extends StatelessWidget {
                   const SizedBox(height: 12),
                   _MenuSection(title: 'Lainnya', items: [
                     _MenuItem(
-                      icon: Icons.help_outline_rounded,
-                      label: 'Bantuan',
-                      onTap: () {},
-                    ),
-                    _MenuItem(
-                      icon: Icons.info_outline_rounded,
-                      label: 'Tentang Aplikasi',
-                      onTap: () {},
-                    ),
-                    _MenuItem(
                       icon: Icons.logout_rounded,
                       label: 'Keluar',
                       isDestructive: true,
