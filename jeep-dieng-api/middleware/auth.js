@@ -1,8 +1,4 @@
 const jwt = require('jsonwebtoken');
-
-/**
- * Middleware: verifikasi JWT dari header Authorization: Bearer <token>
- */
 const authenticate = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -24,9 +20,8 @@ const authenticate = (req, res, next) => {
 };
 
 /**
- * Middleware: batasi akses berdasarkan role
- * Usage: authorize('admin') atau authorize('admin', 'supir')
- */
+ batasi akses berdasarkan role
+  */
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {

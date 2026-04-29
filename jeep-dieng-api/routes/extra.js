@@ -1,34 +1,33 @@
-// routes/payments.js
-const express = require('express');
-const router  = express.Router();
+// routes/payments.js + routes/notifications.js (digabung dalam 1 file)
+const express  = require('express');
+const router   = express.Router();
+const nRouter  = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
+
 const { getPaymentByOrder, convertCurrency, confirmPayment } = require('../controllers/paymentController');
-
-router.get ('/:order_id',          authenticate, getPaymentByOrder);
-router.post('/:order_id/confirm',  authenticate, authorize('admin'), confirmPayment);
-router.get ('/convert/rate',       convertCurrency); // public - no auth needed
-
-module.exports = router;
-
-// ─────────────────────────────────────────────────────────────
-
-// routes/notifications.js
-const nRouter = require('express').Router();
-const { authenticate: nAuth } = require('../middleware/auth');
 const {
   getNotifications, markAsRead, markAllAsRead,
-  createFeedback, getAllFeedback,
+  createFeedback, getMyFeedback, updateFeedback, deleteFeedback, getAllFeedback,
 } = require('../controllers/notificationController');
 
-// Notifications
-nRouter.get ('/',              nAuth, getNotifications);
-nRouter.put ('/read-all',      nAuth, markAllAsRead);
-nRouter.put ('/:id/read',      nAuth, markAsRead);
+// ─── Payment Routes ───────────────────────────────────────────
+router.get ('/:order_id',         authenticate,                  getPaymentByOrder);
+router.post('/:order_id/confirm', authenticate, authorize('admin'), confirmPayment);
+router.get ('/convert/rate',      convertCurrency); // public
 
-// Feedback
-nRouter.post('/feedback',      nAuth, createFeedback);
-nRouter.get ('/feedback/all',  nAuth, require('../middleware/auth').authorize('admin'), getAllFeedback);
+// ─── Notification Routes ──────────────────────────────────────
+nRouter.get ('/',             authenticate, getNotifications);
+nRouter.put ('/read-all',     authenticate, markAllAsRead);
+nRouter.put ('/:id/read',     authenticate, markAsRead);
 
-// Export keduanya
+// ─── Feedback Routes ──────────────────────────────────────────
+// Urutan penting: route spesifik (/my, /all) HARUS sebelum /:id
+nRouter.get   ('/feedback/my',   authenticate, authorize('pelanggan'), getMyFeedback);
+nRouter.get   ('/feedback/all',  authenticate, authorize('admin'),     getAllFeedback);
+nRouter.post  ('/feedback',      authenticate, authorize('pelanggan'), createFeedback);
+nRouter.put   ('/feedback/:id',  authenticate, authorize('pelanggan'), updateFeedback);
+nRouter.delete('/feedback/:id',  authenticate,                        deleteFeedback);
+
+// ─── Exports ──────────────────────────────────────────────────
 module.exports.paymentRouter      = router;
 module.exports.notificationRouter = nRouter;

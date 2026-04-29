@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/auth_service.dart';
+import 'package:jepora/data/services/feedback_service.dart';
+import 'package:jepora/presentation/screens/pelanggan/feedback/my_feedback_screen.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
 
 class ProfileTab extends StatelessWidget {
@@ -114,7 +116,15 @@ class ProfileTab extends StatelessWidget {
                     _MenuItem(
                       icon: Icons.star_outline_rounded,
                       label: 'Feedback Saya',
-                      onTap: () {},
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChangeNotifierProvider(
+                            create: (_) => FeedbackService(),
+                            child: const MyFeedbackScreen(),
+                          ),
+                        ),
+                      ),
                     ),
                   ]),
 

@@ -1,6 +1,3 @@
-/**
- * Centralized error handler — pasang sebagai middleware terakhir di server.js
- */
 const errorHandler = (err, req, res, next) => {
   console.error(`[${new Date().toISOString()}] ERROR:`, err.message);
 
