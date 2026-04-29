@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart';
 import '../models/models.dart';
 import '../../core/network/api_client.dart';
 import '../../core/constants/app_constants.dart';
@@ -155,15 +157,29 @@ class AuthService extends ChangeNotifier {
     String? phone,
     String? oldPassword,
     String? newPassword,
+    File? avatarFile,
   }) async {
     _setLoading(true);
     try {
-      final res = await ApiClient().dio.put('/profile', data: {
+      // Pakai FormData agar bisa kirim file avatar sekaligus
+      final formData = FormData.fromMap({
         'name': name,
-        if (phone != null) 'phone': phone,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
         if (oldPassword != null) 'old_password': oldPassword,
         if (newPassword != null) 'new_password': newPassword,
+        if (avatarFile != null)
+          'avatar': await MultipartFile.fromFile(
+            avatarFile.path,
+            filename: 'avatar_${_user?.id}.jpg',
+          ),
       });
+
+      final res = await ApiClient().dio.put(
+        '/profile',
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+
       if (res.data['success'] == true) {
         final updated = UserModel.fromJson(res.data['data']);
         _user = updated;
