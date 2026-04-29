@@ -27,10 +27,10 @@ const validateVoucher = async (req, res) => {
       voucher: {
         id:            v.id,
         code:          v.code,
-        type:          v.type,          // 'percent' | 'fixed'
-        value:         v.value,         // angka diskon
-        min_order:     v.min_order,     // minimal harga order (nullable)
-        max_discount:  v.max_discount,  // maksimal potongan untuk tipe percent (nullable)
+        type:          v.type,          
+        value:         v.value,         
+        min_order:     v.min_order,     
+        max_discount:  v.max_discount,  
         description:   v.description,
       },
     });
