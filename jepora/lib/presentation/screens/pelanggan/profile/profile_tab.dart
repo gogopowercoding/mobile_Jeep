@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:jepora/core/constants/app_constants.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/auth_service.dart';
 import 'package:jepora/data/services/feedback_service.dart';
@@ -13,6 +14,13 @@ class ProfileTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final user = auth.user;
+    final String baseUrl = AppConstants.baseUrl.replaceAll('/api', '');
+
+    // Tentukan image provider untuk avatar
+    ImageProvider? avatarImage;
+    if (user?.avatar != null && user!.avatar!.isNotEmpty) {
+      avatarImage = NetworkImage('$baseUrl/uploads/${user.avatar}');
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -20,7 +28,7 @@ class ProfileTab extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Header profil
+            // ── Header profil ─────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
@@ -35,13 +43,16 @@ class ProfileTab extends StatelessWidget {
                   CircleAvatar(
                     radius: 44,
                     backgroundColor: Colors.white24,
-                    child: Text(
-                      user?.name.substring(0, 1).toUpperCase() ?? 'U',
-                      style: const TextStyle(
-                        fontSize: 36, fontWeight: FontWeight.w700,
-                        color: Colors.white, fontFamily: 'Poppins',
-                      ),
-                    ),
+                    backgroundImage: avatarImage,
+                    child: avatarImage == null
+                        ? Text(
+                            user?.name.substring(0, 1).toUpperCase() ?? 'U',
+                            style: const TextStyle(
+                              fontSize: 36, fontWeight: FontWeight.w700,
+                              color: Colors.white, fontFamily: 'Poppins',
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   Text(user?.name ?? '-',

@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:jepora/core/constants/app_constants.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/auth_service.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
@@ -12,12 +15,15 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final _formKey      = GlobalKey<FormState>();
-  final _nameCtrl     = TextEditingController();
-  final _phoneCtrl    = TextEditingController();
-  final _oldPassCtrl  = TextEditingController();
-  final _newPassCtrl  = TextEditingController();
+  final _formKey     = GlobalKey<FormState>();
+  final _nameCtrl    = TextEditingController();
+  final _phoneCtrl   = TextEditingController();
+  final _oldPassCtrl = TextEditingController();
+  final _newPassCtrl = TextEditingController();
   bool _changePassword = false;
+
+  File? _pickedAvatar;
+  final _picker = ImagePicker();
 
   @override
   void initState() {
@@ -36,28 +42,159 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    Navigator.pop(context);
+    final picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 800,
+    );
+    if (picked != null) {
+      setState(() => _pickedAvatar = File(picked.path));
+    }
+  }
+
+  void _showImageSourceSheet() {
+    final hasExisting = _pickedAvatar != null ||
+        context.read<AuthService>().user?.avatar != null;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text('Pilih Foto Profil',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                ),
+                title: const Text('Pilih dari Galeri', style: AppTextStyles.body),
+                onTap: () => _pickImage(ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+                ),
+                title: const Text('Ambil Foto', style: AppTextStyles.body),
+                onTap: () => _pickImage(ImageSource.camera),
+              ),
+              if (hasExisting)
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFFFEBEB),
+                    child: Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                  ),
+                  title: const Text('Hapus Foto', style: AppTextStyles.body),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _pickedAvatar = null);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthService>();
+
     final ok = await auth.updateProfile(
       name:        _nameCtrl.text.trim(),
       phone:       _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
       oldPassword: _changePassword ? _oldPassCtrl.text : null,
       newPassword: _changePassword ? _newPassCtrl.text : null,
+      avatarFile:  _pickedAvatar,
     );
+
     if (!mounted) return;
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profil berhasil diperbarui ✅'),
-          backgroundColor: AppColors.success),
+        const SnackBar(
+          content: Text('Profil berhasil diperbarui ✅'),
+          backgroundColor: AppColors.success,
+        ),
       );
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.error ?? 'Gagal memperbarui profil'),
-          backgroundColor: AppColors.error),
+        SnackBar(
+          content: Text(auth.error ?? 'Gagal memperbarui profil'),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
+  }
+
+  Widget _buildAvatar(AuthService auth) {
+    final String? serverAvatar = auth.user?.avatar;
+    final String baseUrl = AppConstants.baseUrl.replaceAll('/api', '');
+
+    ImageProvider? bgImage;
+    if (_pickedAvatar != null) {
+      bgImage = FileImage(_pickedAvatar!);
+    } else if (serverAvatar != null && serverAvatar.isNotEmpty) {
+      bgImage = NetworkImage('$baseUrl/uploads/$serverAvatar');
+    }
+
+    return GestureDetector(
+      onTap: _showImageSourceSheet,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          CircleAvatar(
+            radius: 52,
+            backgroundColor: AppColors.primaryLight,
+            backgroundImage: bgImage,
+            child: bgImage == null
+                ? Text(
+                    auth.user?.name.substring(0, 1).toUpperCase() ?? 'U',
+                    style: const TextStyle(
+                      fontSize: 40, fontWeight: FontWeight.w700,
+                      color: AppColors.primary, fontFamily: 'Poppins',
+                    ),
+                  )
+                : null,
+          ),
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -74,35 +211,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar
+              Center(child: _buildAvatar(auth)),
+              const SizedBox(height: 8),
               Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 48,
-                      backgroundColor: AppColors.primaryLight,
-                      child: Text(
-                        auth.user?.name.substring(0, 1).toUpperCase() ?? 'U',
-                        style: const TextStyle(
-                          fontSize: 40, fontWeight: FontWeight.w700,
-                          color: AppColors.primary, fontFamily: 'Poppins',
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 0, right: 0,
-                      child: Container(
-                        width: 32, height: 32,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary, shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.edit_rounded, size: 16, color: Colors.white),
-                      ),
-                    ),
-                  ],
+                child: TextButton.icon(
+                  onPressed: _showImageSourceSheet,
+                  icon: const Icon(Icons.edit_rounded, size: 14),
+                  label: const Text('Ganti Foto Profil',
+                    style: TextStyle(fontFamily: 'Poppins', fontSize: 13)),
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
 
               const Text('Nama Lengkap', style: AppTextStyles.label),
               const SizedBox(height: 8),
@@ -124,7 +243,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Toggle ganti password
               GestureDetector(
                 onTap: () => setState(() {
                   _changePassword = !_changePassword;
@@ -152,7 +270,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         child: Text('Ganti Password', style: AppTextStyles.label),
                       ),
                       Icon(
-                        _changePassword ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        _changePassword
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
                         color: AppColors.textHint,
                       ),
                     ],
@@ -168,7 +288,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   isPassword: true,
                   prefixIcon: Icons.lock_outlined,
                   validator: (v) {
-                    if (_changePassword && (v == null || v.isEmpty)) return 'Password lama wajib diisi';
+                    if (_changePassword && (v == null || v.isEmpty)) {
+                      return 'Password lama wajib diisi';
+                    }
                     return null;
                   },
                 ),
