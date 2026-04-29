@@ -58,15 +58,59 @@ class _BookingTabState extends State<BookingTab> {
               : RefreshIndicator(
                   color: AppColors.primary,
                   onRefresh: () => orders.fetchOrders(auth.user!.id),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: orders.orders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (ctx, i) {
-                      final order = orders.orders[i];
-                      return _OrderCard(order: order);
-                    },
-                  ),
+                  child: Builder(builder: (context) {
+                    // Hanya tampilkan order yang belum selesai
+                    final activeOrders = orders.orders
+                        .where((o) => o.status != 'completed')
+                        .toList();
+                    if (activeOrders.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.check_circle_outline_rounded,
+                                  size: 64, color: AppColors.primary),
+                              const SizedBox(height: 16),
+                              const Text('Semua pesanan selesai!',
+                                style: TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w600,
+                                  fontFamily: 'Poppins',
+                                  color: AppColors.textPrimary,
+                                )),
+                              const SizedBox(height: 8),
+                              const Text('Lihat riwayat perjalananmu di Profil.',
+                                style: AppTextStyles.bodyMuted,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 20),
+                              TextButton.icon(
+                                onPressed: () =>
+                                    Navigator.pushNamed(context, '/orders'),
+                                icon: const Icon(Icons.history_rounded,
+                                    color: AppColors.primary),
+                                label: const Text('Lihat Riwayat',
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  )),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(20),
+                      itemCount: activeOrders.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (ctx, i) {
+                        return _OrderCard(order: activeOrders[i]);
+                      },
+                    );
+                  }),
                 ),
     );
   }
