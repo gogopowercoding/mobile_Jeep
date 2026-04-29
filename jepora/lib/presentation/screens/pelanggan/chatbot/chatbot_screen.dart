@@ -140,7 +140,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('JeepOra Assistant',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, fontFamily: 'TacOne')),
                 Row(
                   children: [
                     Container(
