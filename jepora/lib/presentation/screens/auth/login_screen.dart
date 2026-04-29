@@ -109,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           'JeepOra',
                           style: TextStyle(
                             fontSize: 32, fontWeight: FontWeight.w700,
-                            color: Colors.white, fontFamily: 'Poppins',
+                            color: Colors.white, fontFamily: 'TacOne',
                             letterSpacing: 1,
                           ),
                         ),
@@ -270,4 +270,3 @@ class _MountainPainter extends CustomPainter {
   @override
   bool shouldRepaint(_) => false;
 }
- 

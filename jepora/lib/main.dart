@@ -4,8 +4,9 @@ import 'core/theme/app_theme.dart';
 import 'core/network/api_client.dart';
 import 'data/services/auth_service.dart';
 import 'data/services/api_services.dart';
-import 'data/services/admin_notification_service.dart';         // ← tambah
+import 'data/services/admin_notification_service.dart';        
 import 'presentation/screens/auth/splash_screen.dart';
+import 'presentation/screens/pelanggan/profile/orders_history_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/pelanggan/main_screen.dart';
@@ -40,7 +41,7 @@ class JeepOraApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PackageService()),
         ChangeNotifierProvider(create: (_) => OrderService()),
         ChangeNotifierProvider(create: (_) => NotificationService()),
-        ChangeNotifierProvider(create: (_) => AdminNotificationService()), // ← tambah
+        ChangeNotifierProvider(create: (_) => AdminNotificationService()),
       ],
       child: MaterialApp(
         title: 'JeepOra',
@@ -57,6 +58,7 @@ class JeepOraApp extends StatelessWidget {
           '/home':                (_) => const MainScreen(),
           '/create-booking':      (_) => const CreateBookingScreen(),
           '/order-detail':        (_) => const OrderDetailScreen(),
+          '/orders':              (_) => const OrdersHistoryScreen(),
           '/upload-payment':      (_) => const UploadPaymentScreen(),
           '/driver-tracking':     (_) => const DriverTrackingScreen(),
           '/package-detail':      (_) => const PackageDetailScreen(),

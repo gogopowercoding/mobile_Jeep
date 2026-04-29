@@ -58,7 +58,7 @@ class _HomeTabState extends State<HomeTab> {
                             const Text('JeepOra',
                               style: TextStyle(
                                 fontSize: 22, fontWeight: FontWeight.w700,
-                                color: AppColors.primary, fontFamily: 'Poppins',
+                                color: AppColors.primary, fontFamily: 'TacOne',
                               ),
                             ),
                           ],
