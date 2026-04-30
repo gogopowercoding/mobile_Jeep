@@ -256,6 +256,17 @@ class OrderService extends ChangeNotifier {
       }
     } catch (_) {}
   }
+
+  /// GET /api/orders/:id — detail lengkap satu pesanan (termasuk bukti bayar)
+  Future<Map<String, dynamic>?> getOrderDetail(int orderId) async {
+    try {
+      final res = await ApiClient().dio.get('/orders/$orderId');
+      if (res.data['success'] == true) {
+        return res.data['data'] as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
 }
 
 // ─── NOTIFICATION SERVICE ────────────────────────────────────

@@ -74,18 +74,6 @@ class AdminProfileTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   _buildTile(
-                    icon: Icons.people_outline_rounded,
-                    label: 'Manajemen User',
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 10),
-                  _buildTile(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'Laporan',
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 10),
-                  _buildTile(
                     icon: Icons.logout_rounded,
                     label: 'Keluar',
                     isDestructive: true,
