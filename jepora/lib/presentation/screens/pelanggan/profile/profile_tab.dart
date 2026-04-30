@@ -7,8 +7,22 @@ import 'package:jepora/data/services/feedback_service.dart';
 import 'package:jepora/presentation/screens/pelanggan/feedback/my_feedback_screen.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
 
-class ProfileTab extends StatelessWidget {
+class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
+
+  @override
+  State<ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<ProfileTab> {
+  @override
+  void initState() {
+    super.initState();
+    // Re-check biometric setiap kali halaman profil dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthService>().recheckBiometric();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

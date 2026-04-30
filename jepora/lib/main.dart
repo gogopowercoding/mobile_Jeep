@@ -37,7 +37,11 @@ class JeepOraApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) {
+          final auth = AuthService();
+          auth.init(); // Inisialisasi biometric & token tersimpan
+          return auth;
+        }),
         ChangeNotifierProvider(create: (_) => PackageService()),
         ChangeNotifierProvider(create: (_) => OrderService()),
         ChangeNotifierProvider(create: (_) => NotificationService()),
