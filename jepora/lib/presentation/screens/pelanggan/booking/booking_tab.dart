@@ -679,7 +679,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
-                          children: ['IDR', 'USD', 'EUR'].map((c) {
+                          children: ['IDR', 'USD', 'EUR', 'SGD'].map((c) {
                             final isActive = c == (_selectedCurrency ?? 'IDR');
                             return GestureDetector(
                               onTap: () {
