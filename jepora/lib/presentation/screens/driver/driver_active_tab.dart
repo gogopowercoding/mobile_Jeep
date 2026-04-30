@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../data/services/auth_service.dart';
@@ -20,10 +22,50 @@ class _DriverActiveTabState extends State<DriverActiveTab> {
   List<OrderModel> _activeOrders = [];
   bool _isLoading = false;
 
+  // Lokasi driver real-time
+  Timer? _locationTimer;
+  Position? _driverPosition;
+  int? _trackingOrderId; // order yang sedang di-track lokasinya ke pelanggan
+
   @override
   void initState() {
     super.initState();
     _fetchActiveOrders();
+    _startLocationTracking();
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _startLocationTracking() async {
+    // Minta izin lokasi
+    LocationPermission perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) {
+      perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied) return;
+    }
+    if (perm == LocationPermission.deniedForever) return;
+
+    // Update lokasi tiap 10 detik
+    _locationTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        if (mounted) setState(() => _driverPosition = pos);
+
+        // Kirim lokasi ke server untuk order yang sedang ongoing
+        if (_trackingOrderId != null) {
+          await ApiClient().dio.put('/orders/$_trackingOrderId/driver-location', data: {
+            'latitude':  pos.latitude,
+            'longitude': pos.longitude,
+          });
+        }
+      } catch (_) {}
+    });
   }
 
   Future<void> _fetchActiveOrders() async {
@@ -31,15 +73,34 @@ class _DriverActiveTabState extends State<DriverActiveTab> {
     try {
       final res = await ApiClient().dio.get('/orders/driver-active');
       if (res.data['success'] == true) {
-        setState(() {
-          _activeOrders = (res.data['data'] as List)
-              .map((e) => OrderModel.fromJson(e))
-              .toList();
-        });
+        final orders = (res.data['data'] as List)
+            .map((e) => OrderModel.fromJson(e))
+            .toList();
+        setState(() => _activeOrders = orders);
+
+        // Restore tracking jika ada order ongoing (misal setelah restart app)
+        final ongoingOrder = orders.where((o) => o.status == 'ongoing').firstOrNull;
+        if (ongoingOrder != null && _trackingOrderId == null) {
+          setState(() => _trackingOrderId = ongoingOrder.id);
+        }
       }
     } catch (_) {} finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  /// Kirim lokasi langsung tanpa menunggu timer
+  Future<void> _sendLocationNow(int orderId) async {
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      if (mounted) setState(() => _driverPosition = pos);
+      await ApiClient().dio.put('/orders/$orderId/driver-location', data: {
+        'latitude':  pos.latitude,
+        'longitude': pos.longitude,
+      });
+    } catch (_) {}
   }
 
   Future<void> _updateStatus(int orderId, String status) async {
@@ -48,10 +109,18 @@ class _DriverActiveTabState extends State<DriverActiveTab> {
     if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(status == 'ongoing'
-            ? '🚙 Perjalanan dimulai!'
+            ? '🚙 Perjalanan dimulai! Lokasi Anda dipantau.'
             : '🏁 Perjalanan selesai!'),
         backgroundColor: AppColors.success,
       ));
+      // Mulai/stop tracking lokasi driver
+      setState(() {
+        _trackingOrderId = status == 'ongoing' ? orderId : null;
+      });
+      // Kirim lokasi langsung sekarang (tidak nunggu timer 10 detik)
+      if (status == 'ongoing') {
+        _sendLocationNow(orderId);
+      }
       _fetchActiveOrders();
     }
   }
@@ -151,6 +220,25 @@ class _ActiveOrderCard extends StatelessWidget {
                     StatusBadge(status: order.status),
                   ],
                 ),
+
+                // Indikator lokasi aktif (jika sedang ongoing)
+                if (order.status == 'ongoing') ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(children: [
+                      Icon(Icons.location_on_rounded, size: 14, color: AppColors.primary),
+                      SizedBox(width: 6),
+                      Text('Lokasi Anda sedang dibagikan ke pelanggan',
+                        style: TextStyle(fontSize: 11, fontFamily: 'Poppins',
+                            color: AppColors.primary, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ],
 
                 const SizedBox(height: 12),
                 const Divider(height: 1, color: AppColors.divider),
