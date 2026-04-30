@@ -35,9 +35,31 @@ class AuthService extends ChangeNotifier {
 
   Future<void> _checkBiometric() async {
     try {
-      _biometricAvailable = await _localAuth.canCheckBiometrics;
+      // Cek device support (hardware tersedia)
+      final isSupported = await _localAuth.isDeviceSupported();
+      if (!isSupported) {
+        _biometricAvailable = false;
+        notifyListeners();
+        return;
+      }
+
+      // Di beberapa emulator/device, canCheckBiometrics bisa false
+      // meskipun isDeviceSupported true — cukup pakai isDeviceSupported
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final available = await _localAuth.getAvailableBiometrics();
+
+      // Tersedia jika device support — tidak wajibkan canCheck & available
+      // karena emulator API 35+ kadang return false meski fingerprint terdaftar
+      _biometricAvailable = isSupported || (canCheck && available.isNotEmpty);
+
       final prefs = await SharedPreferences.getInstance();
       _biometricEnabled = prefs.getBool(AppConstants.biometricKey) ?? false;
+
+      // Jika biometric tidak tersedia lagi, nonaktifkan otomatis
+      if (!_biometricAvailable && _biometricEnabled) {
+        _biometricEnabled = false;
+        await prefs.setBool(AppConstants.biometricKey, false);
+      }
     } catch (_) {
       _biometricAvailable = false;
     }
@@ -106,10 +128,22 @@ class AuthService extends ChangeNotifier {
   // Biometric hanya sebagai "kunci" untuk membuka token yang sudah tersimpan
   Future<bool> loginWithBiometric() async {
     try {
+      // Re-cek availability sebelum authenticate (bisa berubah saat runtime)
+      final isSupported = await _localAuth.isDeviceSupported();
+      final canCheck    = await _localAuth.canCheckBiometrics;
+      final available   = await _localAuth.getAvailableBiometrics();
+
+      if (!isSupported || !canCheck || available.isEmpty) {
+        _biometricAvailable = false;
+        _error = 'Biometrik tidak tersedia. Pastikan sidik jari/wajah sudah terdaftar di pengaturan HP.';
+        notifyListeners();
+        return false;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(AppConstants.tokenKey);
       if (token == null) {
-        _error = 'Belum ada sesi tersimpan. Login dengan email dulu.';
+        _error = 'Belum ada sesi tersimpan. Login dengan email terlebih dahulu.';
         notifyListeners();
         return false;
       }
@@ -117,7 +151,7 @@ class AuthService extends ChangeNotifier {
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Gunakan biometric untuk masuk ke JeepOra',
         options: const AuthenticationOptions(
-          biometricOnly: true,
+          biometricOnly: false, // false agar bisa fallback ke PIN jika biometric gagal
           stickyAuth: true,
         ),
       );
@@ -128,10 +162,15 @@ class AuthService extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      _error = 'Biometric tidak tersedia';
+      _error = 'Autentikasi biometrik gagal. Coba lagi.';
       notifyListeners();
       return false;
     }
+  }
+
+  // ─── RE-CHECK BIOMETRIC (dipanggil saat buka halaman profil) ──
+  Future<void> recheckBiometric() async {
+    await _checkBiometric();
   }
 
   // ─── TOGGLE BIOMETRIC ────────────────────────────────────────
