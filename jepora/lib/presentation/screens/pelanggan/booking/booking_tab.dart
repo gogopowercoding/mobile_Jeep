@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:jepora/core/network/api_client.dart';
+
 import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/core/network/api_client.dart';
 import 'package:jepora/data/services/auth_service.dart';
 import 'package:jepora/data/services/api_services.dart';
 import 'package:jepora/data/models/models.dart';
@@ -840,6 +841,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                   ),
                   const SizedBox(width: 10),
                   SizedBox(
+                    width: 80,
                     height: 52,
                     child: _appliedVoucher == null
                         ? ElevatedButton(
@@ -850,25 +852,34 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(horizontal: 18),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              padding: EdgeInsets.zero,
                             ),
                             child: _voucherLoading
                                 ? const SizedBox(width: 16, height: 16,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Text('Pakai', style: TextStyle(fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white)),
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2))
+                                : const Text('Pakai',
+                                    style: TextStyle(fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13, color: Colors.white)),
                           )
                         : ElevatedButton(
                             onPressed: _removeVoucher,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.error.withOpacity(0.1), elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(color: AppColors.error.withOpacity(0.4))),
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              backgroundColor: AppColors.error.withOpacity(0.1),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                      color: AppColors.error.withOpacity(0.4))),
+                              padding: EdgeInsets.zero,
                             ),
-                            child: const Text('Hapus', style: TextStyle(fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.error)),
+                            child: const Text('Hapus',
+                                style: TextStyle(fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13, color: AppColors.error)),
                           ),
                   ),
                 ],
