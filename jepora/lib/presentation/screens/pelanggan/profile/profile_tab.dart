@@ -103,18 +103,24 @@ class ProfileTab extends StatelessWidget {
                       label: 'Notifikasi',
                       onTap: () => Navigator.pushNamed(context, '/notifications'),
                     ),
-                    _MenuItem(
-                      icon: Icons.fingerprint_rounded,
-                      label: 'Biometric Login',
-                      trailing: Switch(
-                        value: auth.biometricEnabled,
-                        onChanged: auth.biometricAvailable
-                            ? (v) => auth.toggleBiometric(v)
-                            : null,
-                        activeColor: AppColors.primary,
-                      ),
-                      onTap: null,
+                   _MenuItem(
+                    icon: Icons.fingerprint_rounded,
+                    label: 'Biometric Login',
+                    trailing: Switch(
+                      value: auth.biometricEnabled,
+                      onChanged: (v) async {
+                        if (!auth.biometricAvailable) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Biometrik tidak tersedia di perangkat ini')),
+                          );
+                          return;
+                        }
+                        await auth.toggleBiometric(v);
+                      },
+                      activeColor: AppColors.primary,
                     ),
+                    onTap: null,
+                  ),
                   ]),
 
                   const SizedBox(height: 12),

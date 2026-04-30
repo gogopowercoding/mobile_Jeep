@@ -1,431 +1,1306 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:sensors_plus/sensors_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/data/services/game_service.dart';
+import 'package:jepora/data/models/game_model.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
 
-class GamesTab extends StatefulWidget {
+// ─── DATA KARTU ──────────────────────────────────────────────
+class _CardData {
+  final String emoji;
+  final String name;
+  final int pairId;
+  bool isFlipped;
+  bool isMatched;
+
+  _CardData({
+    required this.emoji,
+    required this.name,
+    required this.pairId,
+    this.isFlipped = false,
+    this.isMatched = false,
+  });
+}
+
+// 8 tempat wisata Dieng
+const _destinations = [
+  {'emoji': '🌋', 'name': 'Kawah\nSikidang'},
+  {'emoji': '🌄', 'name': 'Sikunir\nSunrise'},
+  {'emoji': '🏞️', 'name': 'Telaga\nWarna'},
+  {'emoji': '🛕', 'name': 'Candi\nArjuna'},
+  {'emoji': '🍵', 'name': 'Kebun\nTeh'},
+  {'emoji': '🌊', 'name': 'Air Terjun\nSikarim'},
+  {'emoji': '⛰️', 'name': 'Batu\nRatapan'},
+  {'emoji': '🏔️', 'name': 'Swiss\nVan Java'},
+];
+
+// ─── DIFFICULTY CONFIG ───────────────────────────────────────
+class _DiffConfig {
+  final String label;
+  final int gridSize;   // jumlah kartu total (harus genap)
+  final int maxTime;    // detik untuk dapat reward
+  final Color color;
+
+  const _DiffConfig({
+    required this.label,
+    required this.gridSize,
+    required this.maxTime,
+    required this.color,
+  });
+}
+
+const _difficulties = {
+  'easy':   _DiffConfig(label: 'Mudah',   gridSize: 8,  maxTime: 60,  color: AppColors.success),
+  'medium': _DiffConfig(label: 'Sedang',  gridSize: 12, maxTime: 90,  color: AppColors.statusPending),
+  'hard':   _DiffConfig(label: 'Sulit',   gridSize: 16, maxTime: 120, color: AppColors.error),
+};
+
+// ─── MAIN GAMES TAB ──────────────────────────────────────────
+class GamesTab extends StatelessWidget {
   const GamesTab({super.key});
 
   @override
-  State<GamesTab> createState() => _GamesTabState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => GameService(),
+      child: const _GamesTabContent(),
+    );
+  }
 }
 
-class _GamesTabState extends State<GamesTab> with SingleTickerProviderStateMixin {
-  late AnimationController _shakeController;
-  int _score = 0;
-  int _currentQ = 0;
-  bool _answered = false;
-  int? _selectedAnswer;
-  bool _gameStarted = false;
+class _GamesTabContent extends StatefulWidget {
+  const _GamesTabContent();
 
-  // Accelerometer: shake to refresh
-  double _lastX = 0, _lastY = 0, _lastZ = 0;
+  @override
+  State<_GamesTabContent> createState() => _GamesTabContentState();
+}
 
-  final List<Map<String, dynamic>> _questions = [
-    {
-      'question': 'Kawah belerang terkenal di Dieng bernama?',
-      'image': '🌋',
-      'options': ['Kawah Ijen', 'Kawah Sikidang', 'Kawah Tangkuban', 'Kawah Bromo'],
-      'answer': 1,
-      'hint': 'Kawah ini dapat melompat-lompat seperti kijang!',
-    },
-    {
-      'question': 'Bukit yang terkenal untuk melihat golden sunrise di Dieng?',
-      'image': '🌄',
-      'options': ['Bukit Sikunir', 'Bukit Bintang', 'Bukit Moko', 'Bukit Lawang'],
-      'answer': 0,
-      'hint': 'Namanya mengandung warna emas dalam bahasa Jawa',
-    },
-    {
-      'question': 'Telaga berwarna-warni di Dieng disebut?',
-      'image': '🏞️',
-      'options': ['Telaga Sarangan', 'Telaga Menjer', 'Telaga Warna', 'Telaga Ngebel'],
-      'answer': 2,
-      'hint': 'Airnya bisa berubah warna karena kandungan belerang',
-    },
-    {
-      'question': 'Candi peninggalan Hindu yang ada di Dieng bernama kompleks?',
-      'image': '🛕',
-      'options': ['Candi Borobudur', 'Candi Arjuna', 'Candi Prambanan', 'Candi Mendut'],
-      'answer': 1,
-      'hint': 'Nama candi ini diambil dari tokoh pewayangan Mahabharata',
-    },
-    {
-      'question': 'Dieng terletak di ketinggian sekitar berapa mdpl?',
-      'image': '⛰️',
-      'options': ['1.200 mdpl', '1.800 mdpl', '2.093 mdpl', '2.500 mdpl'],
-      'answer': 2,
-      'hint': 'Hampir setinggi 2,1 km di atas permukaan laut',
-    },
-  ];
+class _GamesTabContentState extends State<_GamesTabContent>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabCtrl;
 
   @override
   void initState() {
     super.initState();
-    _shakeController = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 300),
-    );
-
-    // Sensor accelerometer - shake untuk reset game
-    accelerometerEventStream().listen((event) {
-      double dx = (event.x - _lastX).abs();
-      double dy = (event.y - _lastY).abs();
-      double dz = (event.z - _lastZ).abs();
-      if (dx + dy + dz > 25 && _gameStarted) {
-        _resetGame();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('🎮 Game di-reset dengan shake!'),
-            backgroundColor: AppColors.primary),
-        );
-      }
-      _lastX = event.x; _lastY = event.y; _lastZ = event.z;
+    _tabCtrl = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<GameService>().fetchLeaderboard();
+      context.read<GameService>().fetchMyScores();
     });
   }
 
   @override
   void dispose() {
-    _shakeController.dispose();
+    _tabCtrl.dispose();
     super.dispose();
-  }
-
-  void _resetGame() {
-    setState(() {
-      _score = 0; _currentQ = 0;
-      _answered = false; _selectedAnswer = null;
-      _gameStarted = false;
-    });
-  }
-
-  void _answer(int index) {
-    if (_answered) return;
-    final correct = _questions[_currentQ]['answer'] == index;
-    setState(() {
-      _answered = true;
-      _selectedAnswer = index;
-      if (correct) _score += 20;
-    });
-  }
-
-  void _next() {
-    if (_currentQ < _questions.length - 1) {
-      setState(() {
-        _currentQ++;
-        _answered = false;
-        _selectedAnswer = null;
-      });
-    } else {
-      setState(() => _gameStarted = false);
-      _showResult();
-    }
-  }
-
-  void _showResult() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_score >= 80 ? '🏆' : _score >= 60 ? '🥈' : '🎯',
-              style: const TextStyle(fontSize: 60)),
-            const SizedBox(height: 12),
-            Text('Skor kamu: $_score/100',
-              style: AppTextStyles.h2, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text(
-              _score >= 80
-                  ? 'Luar biasa! Kamu ahli wisata Dieng! 🎉\nKamu mendapat diskon 10%!'
-                  : _score >= 60
-                      ? 'Bagus! Terus belajar tentang Dieng!'
-                      : 'Jangan menyerah, coba lagi!',
-              style: AppTextStyles.bodyMuted,
-              textAlign: TextAlign.center,
-            ),
-            if (_score >= 80) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text('KODE DISKON: DIENG10',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700, color: AppColors.primaryDark,
-                    fontFamily: 'Poppins', letterSpacing: 1,
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            PrimaryButton(
-              text: 'Main Lagi',
-              onPressed: () { Navigator.pop(context); _resetGame(); },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_gameStarted) return _buildStartScreen();
-
-    final q = _questions[_currentQ];
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Quiz Wisata Dieng'),
+        automaticallyImplyLeading: false,
+        title: const Text('Games'),
+        bottom: TabBar(
+          controller: _tabCtrl,
+          indicatorColor: AppColors.primary,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
+          labelStyle: const TextStyle(
+            fontFamily: 'Poppins', fontWeight: FontWeight.w600, fontSize: 13),
+          tabs: const [
+            Tab(text: 'Main'),
+            Tab(text: 'Skor Saya'),
+            Tab(text: 'Leaderboard'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabCtrl,
+        children: const [
+          _PlayTab(),
+          _MyScoresTab(),
+          _LeaderboardTab(),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── TAB MAIN ────────────────────────────────────────────────
+class _PlayTab extends StatelessWidget {
+  const _PlayTab();
+
+  void _startGame(BuildContext context, String difficulty) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: context.read<GameService>(),
+          child: MemoryMatchGame(difficulty: difficulty),
+        ),
+      ),
+    ).then((_) {
+      // Refresh skor setelah kembali dari game
+      context.read<GameService>().fetchMyScores();
+      context.read<GameService>().fetchLeaderboard();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Hero
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1B8A4C), Color(0xFF39E07A)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('🃏', style: TextStyle(fontSize: 40)),
+                const SizedBox(height: 10),
+                const Text('Memory Match\nWisata Dieng',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700,
+                    color: Colors.white, fontFamily: 'Poppins')),
+                const SizedBox(height: 6),
+                Text('Cocokkan pasangan kartu tempat wisata Dieng\nSelesai cepat = dapat diskon!',
+                  style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.85),
+                    fontFamily: 'Poppins')),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          const Text('Cara Bermain', style: AppTextStyles.label),
+          const SizedBox(height: 12),
+          _HowToCard(),
+
+          const SizedBox(height: 24),
+          const Text('Pilih Tingkat Kesulitan', style: AppTextStyles.label),
+          const SizedBox(height: 12),
+
+          ..._difficulties.entries.map((e) {
+            final key    = e.key;
+            final config = e.value;
+            final pairs  = config.gridSize ~/ 2;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: () => _startGame(context, key),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: config.color.withOpacity(0.4), width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48, height: 48,
+                        decoration: BoxDecoration(
+                          color: config.color.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.grid_view_rounded,
+                          color: config.color, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(config.label,
+                              style: TextStyle(fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: config.color, fontFamily: 'Poppins')),
+                            Text('$pairs pasang kartu • Reward < ${config.maxTime}s',
+                              style: AppTextStyles.caption),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: config.color,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('Main',
+                          style: TextStyle(fontSize: 13, color: Colors.white,
+                            fontWeight: FontWeight.w700, fontFamily: 'Poppins')),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _HowToCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final steps = [
+      ('1', '👆', 'Tap kartu untuk membuka'),
+      ('2', '🔍', 'Ingat posisi setiap kartu'),
+      ('3', '✅', 'Cocokkan 2 kartu yang sama'),
+      ('4', '🏆', 'Selesaikan semua pasangan'),
+      ('5', '🎁', 'Selesai cepat = dapat diskon booking!'),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: steps.map((s) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 24, height: 24,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary, shape: BoxShape.circle),
+                child: Center(child: Text(s.$1,
+                  style: const TextStyle(fontSize: 11, color: Colors.white,
+                    fontWeight: FontWeight.w700, fontFamily: 'Poppins'))),
+              ),
+              const SizedBox(width: 10),
+              Text(s.$2, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(s.$3, style: AppTextStyles.body)),
+            ],
+          ),
+        )).toList(),
+      ),
+    );
+  }
+}
+
+// ─── MEMORY MATCH GAME ───────────────────────────────────────
+class MemoryMatchGame extends StatefulWidget {
+  final String difficulty;
+
+  const MemoryMatchGame({super.key, required this.difficulty});
+
+  @override
+  State<MemoryMatchGame> createState() => _MemoryMatchGameState();
+}
+
+class _MemoryMatchGameState extends State<MemoryMatchGame>
+    with TickerProviderStateMixin {
+  late List<_CardData> _cards;
+  late _DiffConfig _config;
+
+  int? _firstIndex;
+  int? _secondIndex;
+  bool _isChecking  = false;
+  bool _gameStarted = false;
+  bool _gameWon     = false;
+
+  int _moves      = 0;
+  int _matches    = 0;
+  int _score      = 0;
+  int _timeElapsed = 0;
+  Timer? _timer;
+
+  late List<AnimationController> _flipControllers;
+  late List<Animation<double>>   _flipAnimations;
+
+  @override
+  void initState() {
+    super.initState();
+    _config = _difficulties[widget.difficulty]!;
+    _initGame();
+  }
+
+  void _initGame() {
+    final pairs = _config.gridSize ~/ 2;
+    final selected = List.from(_destinations)..shuffle(Random());
+    final selectedPairs = selected.take(pairs).toList();
+
+    // Duplikat & shuffle
+    final cardList = <_CardData>[];
+    for (int i = 0; i < selectedPairs.length; i++) {
+      cardList.add(_CardData(
+        emoji:  selectedPairs[i]['emoji']!,
+        name:   selectedPairs[i]['name']!,
+        pairId: i,
+      ));
+      cardList.add(_CardData(
+        emoji:  selectedPairs[i]['emoji']!,
+        name:   selectedPairs[i]['name']!,
+        pairId: i,
+      ));
+    }
+    cardList.shuffle(Random());
+    _cards = cardList;
+
+    // Init flip animations
+    _flipControllers = List.generate(
+      _cards.length,
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 350),
+      ),
+    );
+    _flipAnimations = _flipControllers.map((ctrl) =>
+      Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(parent: ctrl, curve: Curves.easeInOut))).toList();
+
+    _firstIndex   = null;
+    _secondIndex  = null;
+    _isChecking   = false;
+    _gameStarted  = false;
+    _gameWon      = false;
+    _moves        = 0;
+    _matches      = 0;
+    _score        = 0;
+    _timeElapsed  = 0;
+    _timer?.cancel();
+  }
+
+  void _startTimer() {
+    _gameStarted = true;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() => _timeElapsed++);
+    });
+  }
+
+  void _onCardTap(int index) {
+    if (_isChecking) return;
+    if (_cards[index].isFlipped || _cards[index].isMatched) return;
+
+    if (!_gameStarted) _startTimer();
+
+    HapticFeedback.lightImpact();
+
+    setState(() => _cards[index].isFlipped = true);
+    _flipControllers[index].forward();
+
+    if (_firstIndex == null) {
+      _firstIndex = index;
+    } else {
+      _secondIndex = index;
+      _moves++;
+      _isChecking = true;
+      _checkMatch();
+    }
+  }
+
+  void _checkMatch() async {
+    final i1 = _firstIndex!;
+    final i2 = _secondIndex!;
+
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    if (_cards[i1].pairId == _cards[i2].pairId) {
+      // Match!
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _cards[i1].isMatched = true;
+        _cards[i2].isMatched = true;
+        _matches++;
+        _score += _calcScore();
+      });
+
+      // Cek menang
+      if (_matches == _config.gridSize ~/ 2) {
+        _onWin();
+      }
+    } else {
+      // Tidak cocok — tutup kembali
+      await Future.delayed(const Duration(milliseconds: 400));
+      setState(() {
+        _cards[i1].isFlipped = false;
+        _cards[i2].isFlipped = false;
+      });
+      _flipControllers[i1].reverse();
+      _flipControllers[i2].reverse();
+    }
+
+    setState(() {
+      _firstIndex  = null;
+      _secondIndex = null;
+      _isChecking  = false;
+    });
+  }
+
+  int _calcScore() {
+    // Skor lebih tinggi jika cepat dan sedikit percobaan
+    int base = 100;
+    if (_timeElapsed < 30) base = 150;
+    else if (_timeElapsed < 60) base = 120;
+    return base;
+  }
+
+  void _onWin() async {
+    _timer?.cancel();
+    HapticFeedback.heavyImpact();
+
+    // Simpan ke backend
+    final gameService = context.read<GameService>();
+    final result = await gameService.saveScore(
+      score:       _score,
+      timeSeconds: _timeElapsed,
+      moves:       _moves,
+      difficulty:  widget.difficulty,
+    );
+
+    if (mounted) {
+      setState(() => _gameWon = true);
+      _showWinDialog(result);
+    }
+  }
+
+  void _showWinDialog(GameResultModel? result) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _WinDialog(
+        score:      _score,
+        time:       _timeElapsed,
+        moves:      _moves,
+        difficulty: widget.difficulty,
+        result:     result,
+        onPlayAgain: () {
+          Navigator.pop(context);
+          setState(() => _initGame());
+        },
+        onExit: () {
+          Navigator.pop(context); // tutup dialog
+          Navigator.pop(context); // kembali ke menu
+        },
+      ),
+    );
+  }
+
+  void _resetGame() {
+    setState(() => _initGame());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    for (final ctrl in _flipControllers) ctrl.dispose();
+    super.dispose();
+  }
+
+  String _formatTime(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  int get _crossAxisCount {
+    if (_config.gridSize == 8)  return 4; // 4x2
+    if (_config.gridSize == 12) return 4; // 4x3
+    return 4;                              // 4x4
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pairs    = _config.gridSize ~/ 2;
+    final progress = _matches / pairs;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text('Memory Match — ${_config.label}'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+            onPressed: _resetGame,
+            tooltip: 'Reset',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // ── Status bar ────────────────────────────────────────
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.divider, width: 0.5),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _StatItem(label: 'Waktu',  value: _formatTime(_timeElapsed),
+                  icon: Icons.timer_outlined,
+                  color: _timeElapsed > _config.maxTime
+                      ? AppColors.error : AppColors.primary),
+                _StatItem(label: 'Langkah', value: '$_moves',
+                  icon: Icons.touch_app_outlined, color: AppColors.statusConfirmed),
+                _StatItem(label: 'Pasang',  value: '$_matches/$pairs',
+                  icon: Icons.check_circle_outline_rounded, color: AppColors.success),
+                _StatItem(label: 'Skor',    value: '$_score',
+                  icon: Icons.star_outline_rounded, color: AppColors.warning),
+              ],
+            ),
+          ),
+
+          // Progress bar
           Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: AppColors.divider,
+                    color: AppColors.primary,
+                    minHeight: 6,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('${(_matches * 100 ~/ pairs)}% selesai',
+                  style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+
+          // Reward hint
+          if (!_gameWon)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
+                  color: _timeElapsed <= _config.maxTime
+                      ? AppColors.primaryLight
+                      : AppColors.error.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text('Skor: $_score',
-                  style: const TextStyle(
-                    color: AppColors.primaryDark, fontWeight: FontWeight.w700,
-                    fontFamily: 'Poppins',
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _timeElapsed <= _config.maxTime
+                          ? Icons.card_giftcard_rounded
+                          : Icons.timer_off_rounded,
+                      size: 14,
+                      color: _timeElapsed <= _config.maxTime
+                          ? AppColors.primaryDark
+                          : AppColors.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _timeElapsed <= _config.maxTime
+                          ? 'Selesai dalam ${_config.maxTime - _timeElapsed}s lagi untuk dapat diskon!'
+                          : 'Waktu reward habis, tapi tetap semangat!',
+                      style: TextStyle(
+                        fontSize: 11, fontFamily: 'Poppins',
+                        color: _timeElapsed <= _config.maxTime
+                            ? AppColors.primaryDark
+                            : AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // ── Grid kartu ────────────────────────────────────────
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: _crossAxisCount,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing:  8,
+                  childAspectRatio: 0.85,
+                ),
+                itemCount: _cards.length,
+                itemBuilder: (ctx, i) => _MemoryCard(
+                  card:      _cards[i],
+                  animation: _flipAnimations[i],
+                  onTap:     () => _onCardTap(i),
                 ),
               ),
             ),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Progress bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (_currentQ + 1) / _questions.length,
-                backgroundColor: AppColors.divider,
-                color: AppColors.primary,
-                minHeight: 6,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text('${_currentQ + 1}/${_questions.length}',
-                style: AppTextStyles.caption),
-            ),
-            const SizedBox(height: 20),
+    );
+  }
+}
 
-            // Question card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1B8A4C), Color(0xFF39E07A)],
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                children: [
-                  Text(q['image'], style: const TextStyle(fontSize: 50)),
-                  const SizedBox(height: 16),
-                  Text(q['question'],
-                    style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600,
-                      color: Colors.white, fontFamily: 'Poppins',
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+// ─── MEMORY CARD WIDGET ──────────────────────────────────────
+class _MemoryCard extends StatelessWidget {
+  final _CardData card;
+  final Animation<double> animation;
+  final VoidCallback onTap;
 
-            // Options
-            Expanded(
-              child: ListView.separated(
-                itemCount: (q['options'] as List).length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) {
-                  final isCorrect = q['answer'] == i;
-                  final isSelected = _selectedAnswer == i;
+  const _MemoryCard({
+    required this.card,
+    required this.animation,
+    required this.onTap,
+  });
 
-                  Color bgColor = AppColors.surface;
-                  Color borderColor = AppColors.divider;
-                  Color textColor = AppColors.textPrimary;
-                  IconData? trailingIcon;
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (_, __) {
+          final angle = animation.value * pi;
+          final showFront = angle >= pi / 2;
 
-                  if (_answered) {
-                    if (isCorrect) {
-                      bgColor = AppColors.success.withOpacity(0.12);
-                      borderColor = AppColors.success;
-                      textColor = AppColors.success;
-                      trailingIcon = Icons.check_circle_rounded;
-                    } else if (isSelected) {
-                      bgColor = AppColors.error.withOpacity(0.12);
-                      borderColor = AppColors.error;
-                      textColor = AppColors.error;
-                      trailingIcon = Icons.cancel_rounded;
-                    }
-                  }
-
-                  return GestureDetector(
-                    onTap: () => _answer(i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: bgColor,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: borderColor, width: 1.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 28, height: 28,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryLight,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                ['A', 'B', 'C', 'D'][i],
-                                style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryDark, fontFamily: 'Poppins',
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(q['options'][i],
-                              style: TextStyle(
-                                fontSize: 14, color: textColor,
-                                fontFamily: 'Poppins', fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          if (trailingIcon != null)
-                            Icon(trailingIcon, color: textColor, size: 20),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            if (_answered) ...[
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.lightbulb_rounded, color: AppColors.primary, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(q['hint'], style: AppTextStyles.caption)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              PrimaryButton(
-                text: _currentQ < _questions.length - 1 ? 'Soal Berikutnya →' : 'Lihat Hasil',
-                onPressed: _next,
-              ),
-            ],
-            const SizedBox(height: 8),
-            Text('💡 Shake HP untuk reset game', style: AppTextStyles.caption),
-          ],
-        ),
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001)
+              ..rotateY(angle),
+            child: showFront
+                ? Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.rotationY(pi),
+                    child: _buildFront(),
+                  )
+                : _buildBack(),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildStartScreen() {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Games')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 100, height: 100,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight, shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.quiz_rounded, size: 50, color: AppColors.primary),
+  Widget _buildFront() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: card.isMatched
+            ? AppColors.primaryLight
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: card.isMatched
+              ? AppColors.primary
+              : AppColors.divider,
+          width: card.isMatched ? 2 : 0.5,
+        ),
+        boxShadow: card.isMatched
+            ? [BoxShadow(color: AppColors.primary.withOpacity(0.3),
+                blurRadius: 8, spreadRadius: 1)]
+            : null,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (card.isMatched)
+            const Icon(Icons.check_circle_rounded,
+              color: AppColors.primary, size: 14),
+          Text(card.emoji,
+            style: const TextStyle(fontSize: 28)),
+          const SizedBox(height: 4),
+          Text(card.name,
+            style: TextStyle(
+              fontSize: 9,
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
+              color: card.isMatched
+                  ? AppColors.primaryDark
+                  : AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBack() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1B8A4C), Color(0xFF39E07A)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1),
+            blurRadius: 4, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: const Center(
+        child: Text('🃏', style: TextStyle(fontSize: 28)),
+      ),
+    );
+  }
+}
+
+// ─── WIN DIALOG ──────────────────────────────────────────────
+class _WinDialog extends StatelessWidget {
+  final int score, time, moves;
+  final String difficulty;
+  final GameResultModel? result;
+  final VoidCallback onPlayAgain;
+  final VoidCallback onExit;
+
+  const _WinDialog({
+    required this.score,
+    required this.time,
+    required this.moves,
+    required this.difficulty,
+    required this.result,
+    required this.onPlayAgain,
+    required this.onExit,
+  });
+
+  String _formatTime(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return m > 0 ? '${m}m ${s}s' : '${s}s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasReward = result?.rewardCode != null;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(hasReward ? '🏆' : '🎯',
+              style: const TextStyle(fontSize: 64)),
+            const SizedBox(height: 12),
+            Text(hasReward ? 'Luar Biasa!' : 'Selesai!',
+              style: AppTextStyles.h2),
+            const SizedBox(height: 4),
+            Text(
+              hasReward
+                  ? 'Kamu menyelesaikan dalam waktu singkat!'
+                  : 'Semua pasangan berhasil ditemukan!',
+              style: AppTextStyles.bodyMuted,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+
+            // Stats
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(14),
               ),
-              const SizedBox(height: 24),
-              const Text('Quiz Wisata Dieng', style: AppTextStyles.h2),
-              const SizedBox(height: 8),
-              const Text(
-                'Uji pengetahuanmu tentang wisata Dieng!\nRaih skor tinggi untuk dapat diskon.',
-                style: AppTextStyles.bodyMuted, textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _StatChip(icon: Icons.help_outline, label: '5 soal'),
-                  const SizedBox(width: 10),
-                  _StatChip(icon: Icons.star_outline, label: '20 poin/soal'),
-                  const SizedBox(width: 10),
-                  _StatChip(icon: Icons.card_giftcard, label: 'Diskon 10%'),
+                  _ResultStat(label: 'Waktu',   value: _formatTime(time)),
+                  _ResultStat(label: 'Langkah', value: '$moves'),
+                  _ResultStat(label: 'Skor',    value: '$score'),
                 ],
               ),
-              const SizedBox(height: 32),
-              PrimaryButton(
-                text: 'Mulai Quiz!',
-                icon: Icons.play_arrow_rounded,
-                onPressed: () => setState(() => _gameStarted = true),
+            ),
+
+            // Reward
+            if (hasReward) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.primary, width: 1.5),
+                ),
+                child: Column(
+                  children: [
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.card_giftcard_rounded,
+                          color: AppColors.primaryDark, size: 18),
+                        SizedBox(width: 6),
+                        Text('Kamu dapat diskon!',
+                          style: TextStyle(fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryDark,
+                            fontFamily: 'Poppins')),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        result!.rewardCode!,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          fontFamily: 'Poppins',
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text('Diskon ${result!.discount}% untuk booking berikutnya',
+                      style: AppTextStyles.caption,
+                      textAlign: TextAlign.center),
+                  ],
+                ),
               ),
             ],
-          ),
+
+            // New best
+            if (result?.isNewBest == true) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.emoji_events_rounded,
+                      color: AppColors.warning, size: 18),
+                    SizedBox(width: 6),
+                    Text('Rekor baru! 🎉',
+                      style: TextStyle(fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.warning,
+                        fontFamily: 'Poppins')),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onExit,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 46)),
+                    child: const Text('Menu',
+                      style: TextStyle(fontFamily: 'Poppins')),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Main Lagi'),
+                    onPressed: onPlayAgain,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(0, 46)),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _StatChip({required this.icon, required this.label});
+class _ResultStat extends StatelessWidget {
+  final String label, value;
+  const _ResultStat({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(fontSize: 20,
+          fontWeight: FontWeight.w700, fontFamily: 'Poppins',
+          color: AppColors.primary)),
+        Text(label, style: AppTextStyles.caption),
+      ],
+    );
+  }
+}
+
+// ─── STAT ITEM ───────────────────────────────────────────────
+class _StatItem extends StatelessWidget {
+  final String label, value;
+  final IconData icon;
+  final Color color;
+
+  const _StatItem({
+    required this.label, required this.value,
+    required this.icon,  required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 14,
+          fontWeight: FontWeight.w700, color: color, fontFamily: 'Poppins')),
+        Text(label, style: AppTextStyles.caption),
+      ],
+    );
+  }
+}
+
+// ─── TAB SKOR SAYA ───────────────────────────────────────────
+class _MyScoresTab extends StatelessWidget {
+  const _MyScoresTab();
+
+  String _formatTime(int s) {
+    final m = s ~/ 60;
+    return m > 0 ? '${m}m ${s % 60}s' : '${s}s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = context.watch<GameService>();
+
+    if (svc.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary));
+    }
+
+    if (svc.myScores.isEmpty) {
+      return const EmptyState(
+        title: 'Belum ada skor',
+        subtitle: 'Mainkan Memory Match untuk melihat skor kamu di sini',
+        icon: Icons.sports_esports_outlined,
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () => svc.fetchMyScores(),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          Icon(icon, size: 13, color: AppColors.primaryDark),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(
-            fontSize: 11, color: AppColors.primaryDark,
-            fontWeight: FontWeight.w600, fontFamily: 'Poppins',
-          )),
+          // Stats summary
+          if (svc.myStats != null) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1B8A4C), Color(0xFF39E07A)],
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _SummaryItem(
+                    label: 'Total Main',
+                    value: '${svc.myStats!['total_games'] ?? 0}',
+                  ),
+                  _SummaryItem(
+                    label: 'Best Skor',
+                    value: '${svc.myStats!['best_score'] ?? 0}',
+                  ),
+                  _SummaryItem(
+                    label: 'Best Time',
+                    value: _formatTime(
+                        int.tryParse('${svc.myStats!['best_time'] ?? 0}') ?? 0),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Score list
+          ...svc.myScores.asMap().entries.map((e) {
+            final i  = e.key;
+            final sc = e.value;
+            final diff = _difficulties[sc.difficulty];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.divider, width: 0.5),
+              ),
+              child: Row(
+                children: [
+                  // Rank
+                  Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: i == 0
+                          ? AppColors.warning.withOpacity(0.15)
+                          : AppColors.primaryLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        i == 0 ? '🥇' : i == 1 ? '🥈' : i == 2 ? '🥉' : '${i+1}',
+                        style: TextStyle(
+                          fontSize: i < 3 ? 18 : 13,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'Poppins',
+                          color: AppColors.primaryDark,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text('Skor: ${sc.score}',
+                              style: AppTextStyles.label),
+                            const SizedBox(width: 8),
+                            if (diff != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: diff.color.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(diff.label,
+                                  style: TextStyle(fontSize: 10,
+                                    color: diff.color,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Poppins')),
+                              ),
+                          ],
+                        ),
+                        Text(
+                          '${_formatTime(sc.timeSeconds)} • ${sc.moves} langkah',
+                          style: AppTextStyles.caption),
+                      ],
+                    ),
+                  ),
+                  if (sc.rewardCode != null)
+                    Column(
+                      children: [
+                        const Icon(Icons.card_giftcard_rounded,
+                          color: AppColors.primary, size: 18),
+                        Text(sc.rewardCode!,
+                          style: const TextStyle(fontSize: 9,
+                            color: AppColors.primaryDark,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Poppins')),
+                      ],
+                    ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  final String label, value;
+  const _SummaryItem({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(value, style: const TextStyle(fontSize: 18,
+        fontWeight: FontWeight.w700, color: Colors.white,
+        fontFamily: 'Poppins')),
+      Text(label, style: TextStyle(fontSize: 11,
+        color: Colors.white.withOpacity(0.8), fontFamily: 'Poppins')),
+    ],
+  );
+}
+
+// ─── TAB LEADERBOARD ─────────────────────────────────────────
+class _LeaderboardTab extends StatefulWidget {
+  const _LeaderboardTab();
+
+  @override
+  State<_LeaderboardTab> createState() => _LeaderboardTabState();
+}
+
+class _LeaderboardTabState extends State<_LeaderboardTab> {
+  String _selected = 'medium';
+
+  String _formatTime(int s) {
+    final m = s ~/ 60;
+    return m > 0 ? '${m}m ${s % 60}s' : '${s}s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = context.watch<GameService>();
+
+    return Column(
+      children: [
+        // Difficulty filter
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: _difficulties.entries.map((e) {
+              final isActive = _selected == e.key;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _selected = e.key);
+                      svc.fetchLeaderboard(difficulty: e.key);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? e.value.color
+                            : AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isActive
+                              ? e.value.color
+                              : AppColors.divider),
+                      ),
+                      child: Text(e.value.label,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12, fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          color: isActive
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                        )),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+
+        Expanded(
+          child: svc.isLoading
+              ? const Center(child: CircularProgressIndicator(
+                  color: AppColors.primary))
+              : svc.leaderboard.isEmpty
+                  ? const EmptyState(
+                      title: 'Belum ada data',
+                      subtitle: 'Jadilah yang pertama masuk leaderboard!',
+                      icon: Icons.leaderboard_outlined,
+                    )
+                  : RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: () => svc.fetchLeaderboard(
+                          difficulty: _selected),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                        itemCount: svc.leaderboard.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 8),
+                        itemBuilder: (ctx, i) {
+                          final entry = svc.leaderboard[i];
+                          return Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: i < 3
+                                  ? AppColors.warning.withOpacity(0.05)
+                                  : AppColors.surface,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: i < 3
+                                    ? AppColors.warning.withOpacity(0.3)
+                                    : AppColors.divider,
+                                width: i < 3 ? 1.5 : 0.5,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                // Medal
+                                SizedBox(
+                                  width: 36,
+                                  child: Text(
+                                    i == 0 ? '🥇'
+                                        : i == 1 ? '🥈'
+                                        : i == 2 ? '🥉'
+                                        : '${i + 1}',
+                                    style: TextStyle(
+                                      fontSize: i < 3 ? 22 : 14,
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(entry.name,
+                                        style: AppTextStyles.label),
+                                      Text(
+                                        '${_formatTime(entry.timeSeconds)} • ${entry.moves} langkah',
+                                        style: AppTextStyles.caption),
+                                    ],
+                                  ),
+                                ),
+                                Text('${entry.score}',
+                                  style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                    fontFamily: 'Poppins')),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+        ),
+      ],
     );
   }
 }

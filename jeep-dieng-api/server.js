@@ -42,6 +42,10 @@ app.use('/api', require('./routes/packageSchedule'));
 const { convertCurrency } = require('./controllers/paymentController');
 app.get('/api/convert', convertCurrency);
 
+// ─── Game routes ───────────────────────────────────────────────
+const gameRoutes = require('./routes/game');
+app.use('/api/game', gameRoutes);
+
 // ─── Health check ─────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
