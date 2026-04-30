@@ -1,17 +1,17 @@
 const db = require('../config/database');
+const path = require('path');
+const fs = require('fs');
 const { createError, sendSuccess } = require('../middleware/errorHandler');
 
 /**
  * POST /api/orders
- * Pelanggan membuat pesanan baru
- * Body: { package_id, booking_date, latitude, longitude, notes? }
+ * Body: { package_id, booking_date, latitude, longitude, notes?, voucher_id?, discount? }
  */
 const createOrder = async (req, res, next) => {
   try {
-    const { package_id, booking_date, latitude, longitude, notes } = req.body;
+    const { package_id, booking_date, latitude, longitude, notes, voucher_id, discount } = req.body;
     const userId = req.user.id;
 
-    // Ambil harga paket
     const [pkgs] = await db.query(
       'SELECT id, name, price FROM packages WHERE id = ? AND is_active = 1',
       [package_id]
@@ -20,32 +20,52 @@ const createOrder = async (req, res, next) => {
 
     const pkg = pkgs[0];
 
+    // Hitung total setelah diskon voucher
+    let totalPrice = parseFloat(pkg.price);
+    let appliedDiscount = 0;
+
+    if (voucher_id && discount) {
+      // Validasi voucher masih valid
+      const [vouchers] = await db.query(
+        `SELECT * FROM vouchers WHERE id = ? AND is_active = 1
+         AND (valid_until IS NULL OR valid_until >= CURDATE())
+         AND (usage_limit IS NULL OR used_count < usage_limit)`,
+        [voucher_id]
+      );
+      if (vouchers.length > 0) {
+        appliedDiscount = parseFloat(discount);
+        totalPrice = Math.max(0, totalPrice - appliedDiscount);
+        // Increment used_count
+        await db.query('UPDATE vouchers SET used_count = used_count + 1 WHERE id = ?', [voucher_id]);
+      }
+    }
+
     const [result] = await db.query(
       `INSERT INTO orders
-         (user_id, package_id, booking_date, total_price, status, latitude, longitude, notes)
-       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)`,
-      [userId, package_id, booking_date, pkg.price, latitude || null, longitude || null, notes || null]
+         (user_id, package_id, booking_date, total_price, discount, voucher_id,
+          status, latitude, longitude, notes)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+      [userId, package_id, booking_date, totalPrice, appliedDiscount,
+       voucher_id || null, latitude || null, longitude || null, notes || null]
     );
 
     const orderId = result.insertId;
 
-    // Buat record payment (pending)
     await db.query(
       `INSERT INTO payments (order_id, amount, currency, payment_status)
        VALUES (?, ?, 'IDR', 'pending')`,
-      [orderId, pkg.price]
+      [orderId, totalPrice]
     );
 
-    // Notifikasi ke pelanggan
     await db.query(
       `INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)`,
-      [userId, 'Pesanan Diterima 🚙', `Pesanan paket "${pkg.name}" Anda telah kami terima dan sedang diproses admin.`]
+      [userId, 'Pesanan Diterima 🚙',
+       `Pesanan paket "${pkg.name}" Anda telah kami terima${appliedDiscount > 0 ? ` dengan diskon Rp ${appliedDiscount.toLocaleString('id-ID')}` : ''}.`]
     );
 
     const [order] = await db.query(
       `SELECT o.*, p.name AS package_name, p.price AS package_price
-       FROM orders o JOIN packages p ON o.package_id = p.id
-       WHERE o.id = ?`,
+       FROM orders o JOIN packages p ON o.package_id = p.id WHERE o.id = ?`,
       [orderId]
     );
 
@@ -56,16 +76,64 @@ const createOrder = async (req, res, next) => {
 };
 
 /**
+ * POST /api/orders/upload-payment
+ * Upload bukti pembayaran (multipart/form-data)
+ * Body: { order_id }, File: payment_proof
+ */
+const uploadPaymentProof = async (req, res, next) => {
+  try {
+    const { order_id } = req.body;
+    const file = req.file;
+
+    if (!file) return next(createError('File bukti pembayaran wajib diunggah', 422));
+    if (!order_id) return next(createError('order_id wajib diisi', 422));
+
+    // Validasi order milik user ini
+    const [orders] = await db.query(
+      'SELECT id, user_id, status FROM orders WHERE id = ?', [order_id]
+    );
+    if (orders.length === 0) return next(createError('Pesanan tidak ditemukan', 404));
+    if (req.user.role === 'pelanggan' && orders[0].user_id !== req.user.id) {
+      return next(createError('Tidak diizinkan', 403));
+    }
+
+    const imageUrl = `/uploads/payments/${file.filename}`;
+
+    // Update payment record dengan bukti
+    await db.query(
+      `UPDATE payments
+       SET payment_proof = ?, payment_status = 'waiting_confirmation', updated_at = NOW()
+       WHERE order_id = ?`,
+      [imageUrl, order_id]
+    );
+
+    // Notifikasi ke admin
+    const [admins] = await db.query(
+      "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 LIMIT 1"
+    );
+    if (admins.length > 0) {
+      await db.query(
+        `INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)`,
+        [admins[0].id, 'Bukti Pembayaran Masuk 💳',
+         `Pelanggan telah mengunggah bukti pembayaran untuk pesanan #${order_id}. Harap verifikasi.`]
+      );
+    }
+
+    return sendSuccess(res, { payment_proof: imageUrl },
+      'Bukti pembayaran berhasil diunggah, menunggu konfirmasi admin');
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/orders/user/:user_id
- * Pelanggan melihat pesanan miliknya sendiri
- * Admin bisa lihat semua dengan GET /api/orders/user/all
  */
 const getOrdersByUser = async (req, res, next) => {
   try {
     const { user_id } = req.params;
     const { status } = req.query;
 
-    // Pelanggan hanya boleh lihat miliknya
     if (req.user.role === 'pelanggan' && String(req.user.id) !== user_id) {
       return next(createError('Tidak diizinkan', 403));
     }
@@ -79,6 +147,7 @@ const getOrdersByUser = async (req, res, next) => {
         d.phone  AS driver_phone,
         py.payment_status,
         py.amount AS payment_amount,
+        py.payment_proof,
         py.currency
       FROM orders o
       JOIN packages p ON o.package_id = p.id
@@ -105,7 +174,6 @@ const getOrdersByUser = async (req, res, next) => {
 
 /**
  * GET /api/orders/:id
- * Detail satu pesanan
  */
 const getOrderById = async (req, res, next) => {
   try {
@@ -123,7 +191,8 @@ const getOrderById = async (req, res, next) => {
          py.payment_status,
          py.amount   AS payment_amount,
          py.currency,
-         py.payment_method
+         py.payment_method,
+         py.payment_proof
        FROM orders o
        JOIN packages  p  ON o.package_id = p.id
        JOIN users     u  ON o.user_id    = u.id
@@ -134,7 +203,6 @@ const getOrderById = async (req, res, next) => {
     );
     if (rows.length === 0) return next(createError('Pesanan tidak ditemukan', 404));
 
-    // Pelanggan hanya boleh lihat miliknya
     const order = rows[0];
     if (req.user.role === 'pelanggan' && order.user_id !== req.user.id) {
       return next(createError('Tidak diizinkan', 403));
@@ -146,43 +214,35 @@ const getOrderById = async (req, res, next) => {
 };
 
 /**
- * POST /api/assign-driver   — admin only
- * Body: { order_id, driver_id }
+ * POST /api/assign-driver  — admin only
  */
 const assignDriver = async (req, res, next) => {
   try {
     const { order_id, driver_id } = req.body;
 
-    // Validasi driver ada & rolnya 'supir'
     const [drivers] = await db.query(
       "SELECT id, name FROM users WHERE id = ? AND role = 'supir' AND is_active = 1",
       [driver_id]
     );
     if (drivers.length === 0) return next(createError('Supir tidak ditemukan atau tidak aktif', 404));
 
-    // Validasi order ada
     const [orders] = await db.query('SELECT id, user_id, status FROM orders WHERE id = ?', [order_id]);
     if (orders.length === 0) return next(createError('Pesanan tidak ditemukan', 404));
 
-    const order = orders[0];
-
-    // Set driver_response ke 'pending' → supir belum ACC
     await db.query(
       "UPDATE orders SET driver_id = ?, status = 'confirmed', driver_response = 'pending' WHERE id = ?",
       [driver_id, order_id]
     );
 
-    // Notifikasi ke supir — minta konfirmasi
     await db.query(
       `INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)`,
       [driver_id, 'Pesanan Baru Menunggu Konfirmasi 🚙',
        `Anda mendapat pesanan baru #${order_id}. Buka aplikasi untuk ACC atau tolak.`]
     );
 
-    // Notifikasi ke pelanggan — masih menunggu supir ACC
     await db.query(
       `INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)`,
-      [order.user_id, 'Pesanan Diproses ⏳',
+      [orders[0].user_id, 'Pesanan Diproses ⏳',
        `Pesanan Anda sedang menunggu konfirmasi dari supir.`]
     );
 
@@ -193,9 +253,7 @@ const assignDriver = async (req, res, next) => {
 };
 
 /**
- * POST /api/orders/respond   — supir only
- * Supir ACC atau TOLAK pesanan yang di-assign admin
- * Body: { order_id, response: 'accepted' | 'rejected', note? }
+ * POST /api/orders/respond  — supir only
  */
 const respondOrder = async (req, res, next) => {
   try {
@@ -205,61 +263,42 @@ const respondOrder = async (req, res, next) => {
       return next(createError("Response harus 'accepted' atau 'rejected'", 422));
     }
 
-    // Ambil data order
     const [orders] = await db.query(
-      `SELECT o.*, u.name AS customer_name
-       FROM orders o
-       JOIN users u ON o.user_id = u.id
-       WHERE o.id = ?`,
+      `SELECT o.*, u.name AS customer_name FROM orders o
+       JOIN users u ON o.user_id = u.id WHERE o.id = ?`,
       [order_id]
     );
     if (orders.length === 0) return next(createError('Pesanan tidak ditemukan', 404));
 
     const order = orders[0];
-
-    // Pastikan supir ini yang di-assign
     if (order.driver_id !== req.user.id) {
       return next(createError('Pesanan ini bukan milik Anda', 403));
     }
-
-    // Pastikan status masih confirmed & driver_response masih pending
     if (order.status !== 'confirmed' || order.driver_response !== 'pending') {
       return next(createError('Pesanan ini sudah direspons sebelumnya', 422));
     }
 
     if (response === 'accepted') {
-      // Supir ACC → update driver_response, konfirmasi pembayaran
       await db.query(
         `UPDATE orders SET driver_response = 'accepted', driver_response_note = ? WHERE id = ?`,
         [note || null, order_id]
       );
-
-      // Update payment ke paid
       await db.query(
         "UPDATE payments SET payment_status = 'paid', paid_at = NOW() WHERE order_id = ?",
         [order_id]
       );
-
-      // Notifikasi pelanggan — supir sudah ACC
       await db.query(
         `INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)`,
         [order.user_id, 'Supir Mengkonfirmasi Pesanan ✅',
          `Supir telah menerima pesanan Anda #${order_id}. Bersiaplah untuk keberangkatan!`]
       );
-
       return sendSuccess(res, null, 'Pesanan berhasil diterima');
-
     } else {
-      // Supir TOLAK → kembalikan ke pending, lepas driver_id
       await db.query(
-        `UPDATE orders
-         SET driver_id = NULL, status = 'pending',
-             driver_response = 'rejected', driver_response_note = ?
-         WHERE id = ?`,
+        `UPDATE orders SET driver_id = NULL, status = 'pending',
+         driver_response = 'rejected', driver_response_note = ? WHERE id = ?`,
         [note || null, order_id]
       );
-
-      // Notifikasi ke admin
       const [admins] = await db.query(
         "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 LIMIT 1"
       );
@@ -270,14 +309,11 @@ const respondOrder = async (req, res, next) => {
            `Supir ${req.user.name} menolak pesanan #${order_id}. Silakan assign supir lain.`]
         );
       }
-
-      // Notifikasi ke pelanggan
       await db.query(
         `INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)`,
         [order.user_id, 'Pesanan Sedang Diproses Ulang 🔄',
          `Pesanan Anda #${order_id} sedang dicarikan supir baru. Mohon tunggu.`]
       );
-
       return sendSuccess(res, null, 'Pesanan berhasil ditolak');
     }
   } catch (err) {
@@ -286,23 +322,17 @@ const respondOrder = async (req, res, next) => {
 };
 
 /**
- * GET /api/orders/driver-active   — supir only
- * Pesanan yang sudah di-ACC supir & sedang aktif (confirmed/ongoing)
+ * GET /api/orders/driver-active  — supir only
  */
 const getDriverActiveOrders = async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      `SELECT
-         o.*,
-         p.name  AS package_name,
-         p.duration,
-         u.name  AS customer_name,
-         u.phone AS customer_phone
+      `SELECT o.*, p.name AS package_name, p.duration,
+              u.name AS customer_name, u.phone AS customer_phone
        FROM orders o
        JOIN packages p ON o.package_id = p.id
        JOIN users    u ON o.user_id    = u.id
-       WHERE o.driver_id = ?
-         AND o.driver_response = 'accepted'
+       WHERE o.driver_id = ? AND o.driver_response = 'accepted'
          AND o.status IN ('confirmed', 'ongoing')
        ORDER BY o.created_at DESC`,
       [req.user.id]
@@ -314,23 +344,17 @@ const getDriverActiveOrders = async (req, res, next) => {
 };
 
 /**
- * GET /api/orders/driver-incoming   — supir only
- * Pesanan yang di-assign ke supir ini & belum di-ACC
+ * GET /api/orders/driver-incoming  — supir only
  */
 const getIncomingOrders = async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      `SELECT
-         o.*,
-         p.name  AS package_name,
-         p.duration,
-         u.name  AS customer_name,
-         u.phone AS customer_phone
+      `SELECT o.*, p.name AS package_name, p.duration,
+              u.name AS customer_name, u.phone AS customer_phone
        FROM orders o
        JOIN packages p ON o.package_id = p.id
        JOIN users    u ON o.user_id    = u.id
-       WHERE o.driver_id = ?
-         AND o.status = 'confirmed'
+       WHERE o.driver_id = ? AND o.status = 'confirmed'
          AND o.driver_response = 'pending'
        ORDER BY o.created_at DESC`,
       [req.user.id]
@@ -342,9 +366,7 @@ const getIncomingOrders = async (req, res, next) => {
 };
 
 /**
- * POST /api/update-status   — supir & admin
- * Body: { order_id, status }
- * Status valid: 'ongoing' | 'completed' | 'cancelled'
+ * POST /api/update-status  — supir & admin
  */
 const updateOrderStatus = async (req, res, next) => {
   try {
@@ -361,15 +383,12 @@ const updateOrderStatus = async (req, res, next) => {
     if (orders.length === 0) return next(createError('Pesanan tidak ditemukan', 404));
 
     const order = orders[0];
-
-    // Supir hanya bisa update pesanan yang di-assign ke dia
     if (req.user.role === 'supir' && order.driver_id !== req.user.id) {
       return next(createError('Tidak diizinkan update pesanan ini', 403));
     }
 
     await db.query('UPDATE orders SET status = ? WHERE id = ?', [status, order_id]);
 
-    // Notifikasi ke pelanggan
     const statusMsg = {
       ongoing:   '🚙 Supir sedang dalam perjalanan menuju lokasi Anda!',
       completed: '🎉 Perjalanan wisata Anda telah selesai. Terima kasih!',
@@ -388,17 +407,14 @@ const updateOrderStatus = async (req, res, next) => {
 };
 
 /**
- * PUT /api/orders/:id/location   — pelanggan update lokasi real-time
- * Body: { latitude, longitude }
+ * PUT /api/orders/:id/location  — pelanggan
  */
 const updateOrderLocation = async (req, res, next) => {
   try {
     const { latitude, longitude } = req.body;
     const { id } = req.params;
 
-    const [orders] = await db.query(
-      'SELECT id, user_id FROM orders WHERE id = ?', [id]
-    );
+    const [orders] = await db.query('SELECT id, user_id FROM orders WHERE id = ?', [id]);
     if (orders.length === 0) return next(createError('Pesanan tidak ditemukan', 404));
     if (orders[0].user_id !== req.user.id) return next(createError('Tidak diizinkan', 403));
 
@@ -414,8 +430,7 @@ const updateOrderLocation = async (req, res, next) => {
 };
 
 /**
- * GET /api/drivers   — admin only
- * Daftar semua supir aktif
+ * GET /api/drivers  — admin only
  */
 const getDrivers = async (req, res, next) => {
   try {
@@ -428,8 +443,60 @@ const getDrivers = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/orders/:id/driver-location  — pelanggan
+ * Ambil lokasi supir terkini untuk ditampilkan di peta
+ */
+const getDriverLocation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await db.query(
+      'SELECT driver_lat AS latitude, driver_lng AS longitude FROM orders WHERE id = ?', [id]
+    );
+    if (rows.length === 0) return next(createError('Pesanan tidak ditemukan', 404));
+    const { latitude, longitude } = rows[0];
+    if (!latitude || !longitude) {
+      return res.json({ success: true, data: null, message: 'Lokasi supir belum tersedia' });
+    }
+    return sendSuccess(res, { latitude, longitude });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PUT /api/orders/:id/driver-location  — supir only
+ * Supir update lokasi real-time saat perjalanan ongoing
+ * Body: { latitude, longitude }
+ */
+const updateDriverLocation = async (req, res, next) => {
+  try {
+    const { latitude, longitude } = req.body;
+    const { id } = req.params;
+
+    const [orders] = await db.query(
+      'SELECT id, driver_id, user_id, status FROM orders WHERE id = ?', [id]
+    );
+    if (orders.length === 0) return next(createError('Pesanan tidak ditemukan', 404));
+    if (orders[0].driver_id !== req.user.id) return next(createError('Tidak diizinkan', 403));
+
+    // Simpan di kolom driver_lat, driver_lng (tambahkan ke tabel orders)
+    await db.query(
+      'UPDATE orders SET driver_lat = ?, driver_lng = ? WHERE id = ?',
+      [latitude, longitude, id]
+    );
+
+    return sendSuccess(res, { latitude, longitude }, 'Lokasi driver diperbarui');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   createOrder,
+  uploadPaymentProof,
+  getDriverLocation,
+  updateDriverLocation,
   getOrdersByUser,
   getOrderById,
   assignDriver,

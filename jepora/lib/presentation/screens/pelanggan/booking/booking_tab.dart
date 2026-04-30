@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-
+import 'package:jepora/core/network/api_client.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/auth_service.dart';
 import 'package:jepora/data/services/api_services.dart';
@@ -356,6 +356,13 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   bool _isConvertingCurrency = false;
   bool _currencyExpanded = false;
 
+  // Voucher state
+  final _voucherCtrl     = TextEditingController();
+  Map<String, dynamic>? _appliedVoucher;
+  double?               _discountAmount;
+  bool                  _voucherLoading = false;
+  String?               _voucherError;
+
   @override
   void initState() {
     super.initState();
@@ -440,6 +447,8 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       latitude:    _lat,
       longitude:   _lng,
       notes:       _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      voucherId:   _appliedVoucher != null ? (_appliedVoucher!['id'] as int?) : null,
+      discount:    _discountAmount,
     );
 
     if (!mounted) return;
@@ -458,9 +467,49 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     }
   }
 
+  Future<void> _applyVoucher(double price) async {
+    final code = _voucherCtrl.text.trim().toUpperCase();
+    if (code.isEmpty) return;
+    setState(() { _voucherLoading = true; _voucherError = null; _appliedVoucher = null; _discountAmount = null; });
+    try {
+      final res = await ApiClient().dio.get('/vouchers/validate', queryParameters: {'code': code});
+      if (res.data['success'] == true) {
+        final v = res.data['voucher'] as Map<String, dynamic>;
+        final minOrder = (v['min_order'] as num?)?.toDouble();
+        if (minOrder != null && price < minOrder) {
+          final fmt = minOrder.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => m[1]! + '.');
+          setState(() => _voucherError = 'Minimal order Rp $fmt');
+          return;
+        }
+        double disc;
+        if (v['type'] == 'percent') {
+          disc = price * (v['value'] as num).toDouble() / 100;
+          final mx = (v['max_discount'] as num?)?.toDouble();
+          if (mx != null && disc > mx) disc = mx;
+        } else {
+          disc = (v['value'] as num).toDouble();
+        }
+        if (disc > price) disc = price;
+        setState(() { _appliedVoucher = v; _discountAmount = disc; });
+      } else {
+        setState(() => _voucherError = res.data['message'] ?? 'Voucher tidak valid');
+      }
+    } catch (_) {
+      setState(() => _voucherError = 'Voucher tidak ditemukan');
+    } finally {
+      if (mounted) setState(() => _voucherLoading = false);
+    }
+  }
+
+  void _removeVoucher() => setState(() {
+    _appliedVoucher = null; _discountAmount = null;
+    _voucherError = null; _voucherCtrl.clear();
+  });
+
   @override
   void dispose() {
     _notesCtrl.dispose();
+    _voucherCtrl.dispose();
     super.dispose();
   }
 
@@ -756,6 +805,117 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                 maxLines: 3,
               ),
 
+              const SizedBox(height: 20),
+
+              // ── Voucher ─────────────────────────────────
+              const Text('Kode Voucher (opsional)', style: AppTextStyles.label),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _voucherCtrl,
+                      enabled: _appliedVoucher == null,
+                      textCapitalization: TextCapitalization.characters,
+                      style: const TextStyle(fontSize: 14, fontFamily: 'Poppins',
+                          color: AppColors.textPrimary, letterSpacing: 1.2),
+                      decoration: InputDecoration(
+                        hintText: 'Masukkan kode voucher',
+                        hintStyle: const TextStyle(fontSize: 13, fontFamily: 'Poppins',
+                            color: AppColors.textHint, letterSpacing: 0),
+                        filled: true,
+                        fillColor: _appliedVoucher == null ? AppColors.surface : AppColors.primaryLight,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.divider)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.divider)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                        disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.primary.withOpacity(0.4))),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    height: 52,
+                    child: _appliedVoucher == null
+                        ? ElevatedButton(
+                            onPressed: _voucherLoading ? null : () {
+                              final pkg = context.read<PackageService>().packages
+                                  .where((p) => p.id == _selectedPkg).firstOrNull;
+                              if (pkg != null) _applyVoucher(pkg.price);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(horizontal: 18),
+                            ),
+                            child: _voucherLoading
+                                ? const SizedBox(width: 16, height: 16,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text('Pakai', style: TextStyle(fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w600, fontSize: 13, color: Colors.white)),
+                          )
+                        : ElevatedButton(
+                            onPressed: _removeVoucher,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.error.withOpacity(0.1), elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(color: AppColors.error.withOpacity(0.4))),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                            ),
+                            child: const Text('Hapus', style: TextStyle(fontFamily: 'Poppins',
+                                fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.error)),
+                          ),
+                  ),
+                ],
+              ),
+
+              if (_voucherError != null) ...[
+                const SizedBox(height: 6),
+                Row(children: [
+                  const Icon(Icons.error_outline_rounded, size: 14, color: AppColors.error),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(_voucherError!, style: const TextStyle(
+                      fontSize: 12, fontFamily: 'Poppins', color: AppColors.error))),
+                ]),
+              ],
+
+              if (_appliedVoucher != null && _discountAmount != null) ...[
+                const SizedBox(height: 10),
+                Builder(builder: (ctx) {
+                  final pkg = context.read<PackageService>().packages
+                      .where((p) => p.id == _selectedPkg).firstOrNull;
+                  if (pkg == null) return const SizedBox.shrink();
+                  final fmt = (double v) => 'Rp ' + v.toStringAsFixed(0)
+                      .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => m[1]! + '.');
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight, borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+                    ),
+                    child: Column(children: [
+                      Row(children: [
+                        const Icon(Icons.local_offer_rounded, size: 15, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(_appliedVoucher!['description'] ?? _appliedVoucher!['code'],
+                          style: const TextStyle(fontSize: 12, fontFamily: 'Poppins',
+                              color: AppColors.primary, fontWeight: FontWeight.w600))),
+                      ]),
+                      const Divider(height: 14, color: AppColors.divider),
+                      _VoucherRow(label: 'Harga Paket', value: fmt(pkg.price)),
+                      _VoucherRow(label: 'Diskon', value: '- ' + fmt(_discountAmount!), valueColor: AppColors.error),
+                      const Divider(height: 10, color: AppColors.divider),
+                      _VoucherRow(label: 'Total', value: fmt(pkg.price - _discountAmount!), bold: true),
+                    ]),
+                  );
+                }),
+              ],
+
               const SizedBox(height: 28),
               PrimaryButton(
                 text: 'Konfirmasi Booking',
@@ -1003,6 +1163,34 @@ class _DetailItem extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Voucher Row ──────────────────────────────────────────────
+class _VoucherRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+  final bool bold;
+  const _VoucherRow({required this.label, required this.value,
+      this.valueColor, this.bold = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, fontFamily: 'Poppins',
+              color: bold ? AppColors.textPrimary : AppColors.textSecondary,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.normal)),
+          Text(value, style: TextStyle(fontSize: 12, fontFamily: 'Poppins',
+              color: valueColor ?? (bold ? AppColors.primary : AppColors.textPrimary),
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w600)),
         ],
       ),
     );

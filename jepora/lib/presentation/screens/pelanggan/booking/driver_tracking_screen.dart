@@ -30,22 +30,54 @@ class _DriverTrackingScreenState extends State<DriverTrackingScreen> {
   String _statusText = 'Memuat lokasi supir...';
   bool _isOnTheWay = false;
 
+  int? _orderId;
+  bool _orderLoaded = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _order = ModalRoute.of(context)?.settings.arguments as OrderModel?;
-    if (_order != null) {
-      // Jika order punya lokasi pelanggan
+    if (_orderLoaded) return;
+    _orderLoaded = true;
+
+    final arg = ModalRoute.of(context)?.settings.arguments;
+    if (arg is OrderModel) {
+      // Dikirim sebagai OrderModel (backward compat)
+      _order = arg;
+      _orderId = arg.id;
       if (_order!.latitude != null && _order!.longitude != null) {
         _customerLocation = LatLng(_order!.latitude!, _order!.longitude!);
       }
-      _fetchDriverLocation();
-      // Refresh tiap 10 detik
-      _refreshTimer = Timer.periodic(
-        const Duration(seconds: 10),
-        (_) => _fetchDriverLocation(),
-      );
+      _startTracking();
+    } else if (arg is int) {
+      // Dikirim sebagai int orderId (cara baru dari booking_tab)
+      _orderId = arg;
+      _fetchOrderThenTrack();
     }
+  }
+
+  Future<void> _fetchOrderThenTrack() async {
+    try {
+      final res = await ApiClient().dio.get('/orders/$_orderId');
+      if (res.data['success'] == true && mounted) {
+        _order = OrderModel.fromJson(res.data['data']);
+        if (_order!.latitude != null && _order!.longitude != null) {
+          setState(() {
+            _customerLocation = LatLng(_order!.latitude!, _order!.longitude!);
+          });
+        }
+        _startTracking();
+      }
+    } catch (_) {
+      if (mounted) setState(() { _isLoading = false; _error = 'Gagal memuat data pesanan'; });
+    }
+  }
+
+  void _startTracking() {
+    _fetchDriverLocation();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _fetchDriverLocation(),
+    );
   }
 
   @override
