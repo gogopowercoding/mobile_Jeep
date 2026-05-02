@@ -124,8 +124,59 @@ class _OrderCard extends StatelessWidget {
   const _OrderCard({required this.order});
 
   /// Apakah status ini layak menampilkan tombol upload bukti bayar
+  /// Sembunyikan jika sudah upload (waiting_confirmation) atau sudah lunas (paid)
   bool get _showUploadPayment =>
-      order.status == 'pending' && order.paymentStatus != 'paid';
+      order.status == 'pending' &&
+      order.paymentStatus != 'paid' &&
+      order.paymentStatus != 'waiting_confirmation';
+
+  /// Bisa cancel jika status masih pending, belum upload bukti, dan belum paid
+  bool get _canCancel =>
+      order.status == 'pending' &&
+      order.paymentStatus != 'paid' &&
+      order.paymentStatus != 'waiting_confirmation';
+
+  Future<void> _cancelOrder(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Batalkan Pesanan?',
+          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600)),
+        content: const Text('Pesanan yang dibatalkan tidak dapat dikembalikan.',
+          style: TextStyle(fontFamily: 'Poppins')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Tidak',
+              style: TextStyle(fontFamily: 'Poppins', color: AppColors.textSecondary))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Ya, Batalkan',
+              style: TextStyle(fontFamily: 'Poppins',
+                  color: AppColors.error, fontWeight: FontWeight.w600))),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      try {
+        final res = await ApiClient().dio.post('/orders/update-status',
+            data: {'order_id': order.id, 'status': 'cancelled'});
+        if (!context.mounted) return;
+        if (res.data['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pesanan berhasil dibatalkan'),
+                backgroundColor: AppColors.error));
+          context.read<OrderService>().fetchOrders(
+              context.read<AuthService>().user!.id);
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gagal membatalkan pesanan')));
+        }
+      }
+    }
+  }
 
   /// Apakah status ini layak menampilkan tombol lacak supir
   bool get _showTrackDriver =>
@@ -216,7 +267,7 @@ class _OrderCard extends StatelessWidget {
             ],
 
             // ── Action Buttons ────────────────────────────────
-            if (_showUploadPayment || _showTrackDriver) ...[
+            if (_showUploadPayment || _showTrackDriver || _canCancel) ...[
               const SizedBox(height: 12),
               const Divider(color: AppColors.divider, height: 1),
               const SizedBox(height: 10),
@@ -256,6 +307,22 @@ class _OrderCard extends StatelessWidget {
                     ),
                 ],
               ),
+              // Tombol Cancel
+              if (_canCancel) ...[
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () => _cancelOrder(context),
+                    icon: const Icon(Icons.cancel_outlined,
+                        size: 16, color: AppColors.error),
+                    label: const Text('Batalkan Pesanan',
+                      style: TextStyle(
+                        fontFamily: 'Poppins', fontSize: 13,
+                        color: AppColors.error, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
             ],
           ],
         ),
@@ -1019,7 +1086,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _buildContent() {
     final o = _order!;
-    final showUpload = o.status == 'pending' && o.paymentStatus != 'paid';
+    // Sembunyikan tombol upload & cancel jika sudah upload bukti (waiting_confirmation) atau lunas (paid)
+    final showUpload = o.status == 'pending' &&
+        o.paymentStatus != 'paid' &&
+        o.paymentStatus != 'waiting_confirmation';
     final showTrack  = (o.status == 'confirmed' || o.status == 'ongoing') && o.driverName != null;
 
     return SingleChildScrollView(
@@ -1094,7 +1164,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               text: 'Upload Bukti Pembayaran',
               icon: Icons.upload_rounded,
               onPressed: () => Navigator.pushNamed(
-                context, '/upload-payment', arguments: o.id,
+                context, '/upload-payment', arguments: o,
               ),
             ),
 
@@ -1116,6 +1186,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
           ],
 
+          // Tombol Cancel — hanya jika status pending, belum upload bukti, dan belum paid
+          if (o.status == 'pending' &&
+              o.paymentStatus != 'paid' &&
+              o.paymentStatus != 'waiting_confirmation') ...[ 
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _confirmCancelFromDetail(context, o),
+              icon: const Icon(Icons.cancel_outlined,
+                  size: 18, color: AppColors.error),
+              label: const Text('Batalkan Pesanan',
+                style: TextStyle(fontFamily: 'Poppins',
+                    color: AppColors.error, fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                side: const BorderSide(color: AppColors.error),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+
           const SizedBox(height: 24),
         ],
       ),
@@ -1124,9 +1215,53 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   String _paymentLabel(String? status) {
     switch (status) {
-      case 'paid':    return 'Lunas ✓';
-      case 'pending': return 'Menunggu Pembayaran';
-      default:        return status ?? '-';
+      case 'paid':                  return 'Lunas ✓';
+      case 'pending':               return 'Menunggu Pembayaran';
+      case 'waiting_confirmation':  return 'Bukti Dikirim, Menunggu Konfirmasi Admin ⏳';
+      default:                      return status ?? '-';
+    }
+  }
+
+  Future<void> _confirmCancelFromDetail(
+      BuildContext context, OrderModel o) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Batalkan Pesanan?',
+          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600)),
+        content: const Text('Pesanan yang dibatalkan tidak dapat dikembalikan.',
+          style: TextStyle(fontFamily: 'Poppins')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Tidak',
+              style: TextStyle(fontFamily: 'Poppins',
+                  color: AppColors.textSecondary))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Ya, Batalkan',
+              style: TextStyle(fontFamily: 'Poppins',
+                  color: AppColors.error, fontWeight: FontWeight.w600))),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      try {
+        final res = await ApiClient().dio.post('/orders/update-status',
+            data: {'order_id': o.id, 'status': 'cancelled'});
+        if (!context.mounted) return;
+        if (res.data['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pesanan berhasil dibatalkan'),
+                backgroundColor: AppColors.error));
+          Navigator.pop(context);
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gagal membatalkan pesanan')));
+        }
+      }
     }
   }
 }
