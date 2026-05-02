@@ -5,11 +5,12 @@ const { createError, sendSuccess } = require('../middleware/errorHandler');
 
 /**
  * POST /api/orders
- * Body: { package_id, booking_date, latitude, longitude, notes?, voucher_id?, discount? }
+ * Body: { package_id, booking_date, latitude, longitude, notes?, voucher_id? }
+ * CATATAN: field 'discount' dihapus dari body — kalkulasi dilakukan di backend
  */
 const createOrder = async (req, res, next) => {
   try {
-    const { package_id, booking_date, latitude, longitude, notes, voucher_id, discount } = req.body;
+    const { package_id, booking_date, latitude, longitude, notes, voucher_id } = req.body;
     const userId = req.user.id;
 
     const [pkgs] = await db.query(
@@ -20,23 +21,57 @@ const createOrder = async (req, res, next) => {
 
     const pkg = pkgs[0];
 
-    // Hitung total setelah diskon voucher
+    // Hitung total setelah diskon voucher — kalkulasi dilakukan di backend
     let totalPrice = parseFloat(pkg.price);
     let appliedDiscount = 0;
+    let appliedVoucherId = null;
 
-    if (voucher_id && discount) {
-      // Validasi voucher masih valid
+    if (voucher_id) {
+      // Validasi voucher: aktif, belum kadaluarsa, belum habis kuota
       const [vouchers] = await db.query(
         `SELECT * FROM vouchers WHERE id = ? AND is_active = 1
+         AND (valid_from IS NULL OR valid_from <= CURDATE())
          AND (valid_until IS NULL OR valid_until >= CURDATE())
          AND (usage_limit IS NULL OR used_count < usage_limit)`,
         [voucher_id]
       );
+
       if (vouchers.length > 0) {
-        appliedDiscount = parseFloat(discount);
-        totalPrice = Math.max(0, totalPrice - appliedDiscount);
-        // Increment used_count
-        await db.query('UPDATE vouchers SET used_count = used_count + 1 WHERE id = ?', [voucher_id]);
+        const v = vouchers[0];
+
+        // Cek minimum order
+        if (totalPrice >= parseFloat(v.min_order)) {
+          if (v.type === 'percent') {
+            appliedDiscount = (totalPrice * parseFloat(v.value)) / 100;
+            // Terapkan batas maksimal diskon jika ada
+            if (v.max_discount) {
+              appliedDiscount = Math.min(appliedDiscount, parseFloat(v.max_discount));
+            }
+          } else {
+            // type === 'fixed'
+            appliedDiscount = parseFloat(v.value);
+          }
+
+          totalPrice = Math.max(0, totalPrice - appliedDiscount);
+          appliedVoucherId = v.id;
+
+          // Increment used_count
+          await db.query(
+            'UPDATE vouchers SET used_count = used_count + 1 WHERE id = ?',
+            [v.id]
+          );
+        } else {
+          // Order di bawah minimum, tolak voucher
+          return next(
+            createError(
+              `Voucher hanya berlaku untuk order minimal Rp ${parseFloat(v.min_order).toLocaleString('id-ID')}`,
+              422
+            )
+          );
+        }
+      } else {
+        // Voucher tidak valid / sudah kadaluarsa / habis kuota
+        return next(createError('Voucher tidak valid atau sudah kadaluarsa', 422));
       }
     }
 
@@ -46,7 +81,7 @@ const createOrder = async (req, res, next) => {
           status, latitude, longitude, notes)
        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
       [userId, package_id, booking_date, totalPrice, appliedDiscount,
-       voucher_id || null, latitude || null, longitude || null, notes || null]
+       appliedVoucherId, latitude || null, longitude || null, notes || null]
     );
 
     const orderId = result.insertId;
@@ -480,7 +515,6 @@ const updateDriverLocation = async (req, res, next) => {
     if (orders.length === 0) return next(createError('Pesanan tidak ditemukan', 404));
     if (orders[0].driver_id !== req.user.id) return next(createError('Tidak diizinkan', 403));
 
-    // Simpan di kolom driver_lat, driver_lng (tambahkan ke tabel orders)
     await db.query(
       'UPDATE orders SET driver_lat = ?, driver_lng = ? WHERE id = ?',
       [latitude, longitude, id]

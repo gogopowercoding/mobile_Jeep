@@ -449,7 +449,6 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       longitude:   _lng,
       notes:       _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       voucherId:   _appliedVoucher != null ? (_appliedVoucher!['id'] as int?) : null,
-      discount:    _discountAmount,
     );
 
     if (!mounted) return;

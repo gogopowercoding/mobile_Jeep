@@ -190,7 +190,6 @@ class OrderService extends ChangeNotifier {
     double? longitude,
     String? notes,
     int? voucherId,
-    double? discount,
   }) async {
     _isLoading = true;
     _error = null;
@@ -203,7 +202,6 @@ class OrderService extends ChangeNotifier {
         if (longitude != null)  'longitude':  longitude,
         if (notes != null)      'notes':      notes,
         if (voucherId != null)  'voucher_id': voucherId,
-        if (discount != null)   'discount':   discount,
       });
       if (res.data['success'] == true) {
         return OrderModel.fromJson(res.data['data']);
