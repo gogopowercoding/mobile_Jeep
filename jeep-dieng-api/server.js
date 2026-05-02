@@ -46,6 +46,10 @@ app.get('/api/convert', convertCurrency);
 const gameRoutes = require('./routes/game');
 app.use('/api/game', gameRoutes);
 
+// ─── Voucher routes ────────────────────────────────────────────
+const voucherRoutes = require('./routes/vouchers');
+app.use('/api/vouchers', voucherRoutes);
+
 // ─── Health check ─────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({

@@ -1,7 +1,10 @@
-// controllers/voucherController.js
 const db = require('../config/database');
 
-// GET /api/vouchers/validate?code=KODE123
+/**
+ * GET /api/vouchers/validate?code=KODE123
+ * Validasi voucher berdasarkan kode string.
+ * Digunakan oleh Flutter sebelum checkout untuk preview diskon.
+ */
 const validateVoucher = async (req, res) => {
   try {
     const { code } = req.query;
@@ -25,13 +28,13 @@ const validateVoucher = async (req, res) => {
     return res.json({
       success: true,
       voucher: {
-        id:            v.id,
-        code:          v.code,
-        type:          v.type,          
-        value:         v.value,         
-        min_order:     v.min_order,     
-        max_discount:  v.max_discount,  
-        description:   v.description,
+        id:           v.id,
+        code:         v.code,
+        type:         v.type,
+        value:        v.value,
+        min_order:    v.min_order,
+        max_discount: v.max_discount,
+        description:  v.description,
       },
     });
   } catch (err) {
