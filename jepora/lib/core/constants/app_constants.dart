@@ -1,8 +1,10 @@
 class AppConstants {
   // Base URL - ganti sesuai IP server kamu
   // Emulator Android: 10.0.2.2
-  // Device fisik: IP komputer kamu, misal 192.168.1.x
-  static const String baseUrl = 'http://10.0.2.2:3000/api';
+  // static const String baseUrl = 'http://10.0.2.2:3000/api';
+
+  // Device fisik: IP komputer kamu, untuk testing di hp
+  static const String baseUrl = 'http://192.168.93.245:3000/api';
 
   // Storage keys
   static const String tokenKey       = 'auth_token';

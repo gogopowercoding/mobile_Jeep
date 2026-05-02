@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/core/constants/app_constants.dart';
 import 'package:jepora/data/models/models.dart';
 import 'package:jepora/data/services/api_services.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
@@ -333,11 +334,11 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                                   const SizedBox(height: 8),
                                   GestureDetector(
                                     onTap: () => _showPaymentProof(context,
-                                        _detail!['payment_proof']),
+                                        _buildImageUrl(_detail!['payment_proof'])),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(10),
                                       child: Image.network(
-                                        _detail!['payment_proof'],
+                                        _buildImageUrl(_detail!['payment_proof']),
                                         height: 180,
                                         width: double.infinity,
                                         fit: BoxFit.cover,
@@ -399,6 +400,15 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
         ),
       ),
     );
+  }
+
+  /// Ubah relative path dari backend menjadi full URL yang bisa diakses
+  /// Backend mengembalikan: /uploads/payments/filename.jpg
+  /// Perlu diubah ke:       http://192.168.x.x:3000/uploads/payments/filename.jpg
+  String _buildImageUrl(String path) {
+    if (path.startsWith('http')) return path; // sudah full URL
+    final base = AppConstants.baseUrl.replaceAll('/api', '');
+    return '$base$path';
   }
 
   void _showPaymentProof(BuildContext context, String imageUrl) {
@@ -528,7 +538,8 @@ class _DetailRow extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════
-// Assign Driver Button (tidak berubah dari semula)
+// Assign Driver Button — hanya tampilkan driver yang bebas
+// (tidak sedang mengerjakan order confirmed/ongoing)
 // ══════════════════════════════════════════════════
 class _AssignDriverButton extends StatefulWidget {
   final int orderId;
@@ -544,9 +555,10 @@ class _AssignDriverButtonState extends State<_AssignDriverButton> {
   @override
   Widget build(BuildContext context) {
     final orderService = context.watch<OrderService>();
-    final drivers = orderService.drivers;
+    final allDrivers   = orderService.drivers;
+    final allOrders    = orderService.orders;
 
-    if (drivers.isEmpty) {
+    if (allDrivers.isEmpty) {
       return TextButton(
         onPressed: () => orderService.fetchDrivers(),
         child: const Text('Muat daftar supir',
@@ -554,48 +566,116 @@ class _AssignDriverButtonState extends State<_AssignDriverButton> {
       );
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<int>(
-            value: _selectedDriver,
-            hint: const Text('Pilih supir',
-                style: TextStyle(fontSize: 13, fontFamily: 'Poppins')),
-            decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            items: drivers
-                .map((d) => DropdownMenuItem(
-                    value: d.id,
-                    child: Text(d.name, style: AppTextStyles.body)))
-                .toList(),
-            onChanged: (v) => setState(() => _selectedDriver = v),
-          ),
+    // Driver yang sedang punya order aktif (confirmed atau ongoing)
+    final busyDriverIds = allOrders
+        .where((o) =>
+            (o.status == 'confirmed' || o.status == 'ongoing') &&
+            o.driverId != null)
+        .map((o) => o.driverId!)
+        .toSet();
+
+    // Hanya driver yang tidak sedang aktif
+    final availableDrivers =
+        allDrivers.where((d) => !busyDriverIds.contains(d.id)).toList();
+
+    if (availableDrivers.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.error.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.error.withOpacity(0.25)),
         ),
-        const SizedBox(width: 8),
-        ElevatedButton(
-          onPressed: _selectedDriver == null
-              ? null
-              : () async {
-                  final ok = await orderService.assignDriver(
-                      widget.orderId, _selectedDriver!);
-                  if (ok && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Supir berhasil di-assign ✅'),
-                          backgroundColor: AppColors.success),
-                    );
-                    orderService.fetchAllOrders();
-                  }
-                },
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size(80, 42),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-          ),
-          child: const Text('Assign'),
+        child: const Row(
+          children: [
+            Icon(Icons.no_transfer_rounded,
+                size: 16, color: AppColors.error),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Semua supir sedang bertugas. Tunggu hingga ada supir yang menyelesaikan pesanan.',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontFamily: 'Poppins',
+                    color: AppColors.error),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Reset pilihan jika driver yang dipilih ternyata sudah jadi sibuk
+    if (_selectedDriver != null &&
+        !availableDrivers.any((d) => d.id == _selectedDriver)) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => setState(() => _selectedDriver = null));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Info jumlah driver tersedia
+        Row(
+          children: [
+            const Icon(Icons.check_circle_outline_rounded,
+                size: 13, color: AppColors.primary),
+            const SizedBox(width: 5),
+            Text(
+              '${availableDrivers.length} supir tersedia '
+              '(${busyDriverIds.length} sedang bertugas)',
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'Poppins',
+                  color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: _selectedDriver,
+                hint: const Text('Pilih supir',
+                    style: TextStyle(fontSize: 13, fontFamily: 'Poppins')),
+                decoration: InputDecoration(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                items: availableDrivers
+                    .map((d) => DropdownMenuItem(
+                        value: d.id,
+                        child: Text(d.name, style: AppTextStyles.body)))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedDriver = v),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _selectedDriver == null
+                  ? null
+                  : () async {
+                      final ok = await orderService.assignDriver(
+                          widget.orderId, _selectedDriver!);
+                      if (ok && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Supir berhasil di-assign ✅'),
+                              backgroundColor: AppColors.success),
+                        );
+                        orderService.fetchAllOrders();
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(80, 42),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              child: const Text('Assign'),
+            ),
+          ],
         ),
       ],
     );

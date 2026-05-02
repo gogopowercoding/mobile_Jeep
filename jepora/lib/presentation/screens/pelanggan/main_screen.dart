@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/auth_service.dart';
 import 'package:jepora/data/services/api_services.dart';
@@ -19,6 +21,11 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
+  // ── Shake detection ──────────────────────────────────────────
+  StreamSubscription<AccelerometerEvent>? _accelSubscription;
+  double _lastX = 0, _lastY = 0, _lastZ = 0;
+  DateTime _lastShake = DateTime.now();
+
   final List<Widget> _tabs = const [
     HomeTab(),
     BookingTab(),
@@ -26,6 +33,63 @@ class _MainScreenState extends State<MainScreen> {
     FeedbackTab(),
     ProfileTab(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _startShakeListener();
+  }
+
+  void _startShakeListener() {
+    _accelSubscription = accelerometerEventStream().listen((event) {
+      final dx = (event.x - _lastX).abs();
+      final dy = (event.y - _lastY).abs();
+      final dz = (event.z - _lastZ).abs();
+
+      if (dx + dy + dz > 25) {
+        final now = DateTime.now();
+        if (now.difference(_lastShake).inSeconds >= 2) {
+          _lastShake = now;
+          _openChatbot();
+        }
+      }
+
+      _lastX = event.x;
+      _lastY = event.y;
+      _lastZ = event.z;
+    });
+  }
+
+  void _openChatbot() {
+    if (!mounted) return;
+
+    // Pastikan hanya aktif saat user login sebagai pelanggan
+    final authService = context.read<AuthService>();
+    if (!authService.isLoggedIn || !authService.isCustomer) return;
+
+    Navigator.pushNamed(context, '/chatbot');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          '🤖 JeepOra AI dibuka!',
+          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w500),
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    // Dispose listener agar tidak memory leak
+    _accelSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
