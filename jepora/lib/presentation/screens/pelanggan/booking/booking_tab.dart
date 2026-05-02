@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/core/network/api_client.dart';
+import 'package:dio/dio.dart';
 import 'package:jepora/data/services/auth_service.dart';
 import 'package:jepora/data/services/api_services.dart';
 import 'package:jepora/data/models/models.dart';
@@ -231,7 +232,7 @@ class _OrderCard extends StatelessWidget {
                         onTap: () => Navigator.pushNamed(
                           context,
                           '/upload-payment',
-                          arguments: order.id,
+                          arguments: order,
                         ),
                       ),
                     ),
@@ -457,7 +458,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       Navigator.pushReplacementNamed(
         context,
         '/upload-payment',
-        arguments: order.id,
+        arguments: order,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -475,27 +476,41 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       final res = await ApiClient().dio.get('/vouchers/validate', queryParameters: {'code': code});
       if (res.data['success'] == true) {
         final v = res.data['voucher'] as Map<String, dynamic>;
-        final minOrder = (v['min_order'] as num?)?.toDouble();
+        // MySQL decimal dikembalikan sebagai String di Node.js — parse manual
+        double? parseNum(dynamic val) => val == null ? null : double.tryParse(val.toString());
+
+        final minOrder = parseNum(v['min_order']);
         if (minOrder != null && price < minOrder) {
-          final fmt = minOrder.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => m[1]! + '.');
+          final fmt = minOrder.toStringAsFixed(0).replaceAllMapped(
+              RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => m[1]! + '.');
           setState(() => _voucherError = 'Minimal order Rp $fmt');
           return;
         }
         double disc;
         if (v['type'] == 'percent') {
-          disc = price * (v['value'] as num).toDouble() / 100;
-          final mx = (v['max_discount'] as num?)?.toDouble();
+          disc = price * (parseNum(v['value']) ?? 0) / 100;
+          final mx = parseNum(v['max_discount']);
           if (mx != null && disc > mx) disc = mx;
         } else {
-          disc = (v['value'] as num).toDouble();
+          disc = parseNum(v['value']) ?? 0;
         }
         if (disc > price) disc = price;
         setState(() { _appliedVoucher = v; _discountAmount = disc; });
       } else {
         setState(() => _voucherError = res.data['message'] ?? 'Voucher tidak valid');
       }
-    } catch (_) {
-      setState(() => _voucherError = 'Voucher tidak ditemukan');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final msg    = e.response?.data?['message'];
+      if (status == 401) {
+        setState(() => _voucherError = 'Sesi habis, silakan login ulang');
+      } else if (status == 404) {
+        setState(() => _voucherError = msg ?? 'Voucher tidak valid atau sudah kadaluarsa');
+      } else {
+        setState(() => _voucherError = msg ?? 'Gagal menghubungi server (${status ?? 'no connection'})');
+      }
+    } catch (e) {
+      setState(() => _voucherError = 'Error: $e');
     } finally {
       if (mounted) setState(() => _voucherLoading = false);
     }
@@ -678,7 +693,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
-                          children: ['IDR', 'USD', 'EUR', 'SGD'].map((c) {
+                          children: ['IDR', 'USD', 'EUR'].map((c) {
                             final isActive = c == (_selectedCurrency ?? 'IDR');
                             return GestureDetector(
                               onTap: () {

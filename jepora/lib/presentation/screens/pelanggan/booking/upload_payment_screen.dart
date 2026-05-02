@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/core/network/api_client.dart';
+import 'package:jepora/data/models/order_model.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
 
 /// Screen upload bukti pembayaran
@@ -22,12 +24,22 @@ class _UploadPaymentScreenState extends State<UploadPaymentScreen> {
   String? _errorMsg;
   final ImagePicker _picker = ImagePicker();
   int? _orderId;
+  OrderModel? _order;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _orderId = ModalRoute.of(context)?.settings.arguments as int?;
+    final arg = ModalRoute.of(context)?.settings.arguments;
+    if (arg is OrderModel) {
+      _order = arg;
+      _orderId = arg.id;
+    } else if (arg is int) {
+      _orderId = arg;
+    }
   }
+
+  String _formatPrice(double p) => 'Rp ' + p.toStringAsFixed(0)
+      .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => m[1]! + '.');
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -155,6 +167,69 @@ class _UploadPaymentScreenState extends State<UploadPaymentScreen> {
                 ],
               ),
             ),
+
+            const SizedBox(height: 14),
+
+            // ── Total pembayaran ──────────────────────────────
+            if (_order != null)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Ringkasan Pembayaran',
+                      style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700,
+                        fontFamily: 'Poppins', color: AppColors.textPrimary)),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: AppColors.divider),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total Transfer',
+                          style: TextStyle(
+                            fontSize: 14, fontFamily: 'Poppins',
+                            color: AppColors.textSecondary)),
+                        GestureDetector(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(
+                                text: _order!.totalPrice.toStringAsFixed(0)));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Nominal disalin'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              Text(
+                                _formatPrice(_order!.totalPrice),
+                                style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w800,
+                                  fontFamily: 'Poppins', color: AppColors.primary)),
+                              const SizedBox(width: 6),
+                              const Icon(Icons.copy_rounded,
+                                  size: 16, color: AppColors.primary),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text('Tap nominal untuk menyalin',
+                      style: TextStyle(
+                        fontSize: 11, fontFamily: 'Poppins',
+                        color: AppColors.textHint, fontStyle: FontStyle.italic)),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 24),
 
