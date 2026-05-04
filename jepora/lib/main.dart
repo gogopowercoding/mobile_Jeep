@@ -24,6 +24,7 @@ import 'presentation/screens/admin/admin_screen.dart';
 import 'presentation/screens/admin/tabs/admin_package_form_screen.dart';
 import 'presentation/screens/driver/driver_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'presentation/screens/pelanggan/booking/location_picker_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,6 +77,7 @@ class JeepOraApp extends StatelessWidget {
           '/package-detail':      (_) => const PackageDetailScreen(),
           '/timezone':            (_) => const TimeZoneConverterScreen(),
           '/chatbot':             (_) => const ChatbotScreen(),
+          '/location-picker':     (_) => const LocationPickerScreen(),
 
           // ── Admin ─────────────────────────────────────────────
           '/admin':               (_) => const AdminScreen(),

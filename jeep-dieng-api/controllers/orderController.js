@@ -6,7 +6,6 @@ const { createError, sendSuccess } = require('../middleware/errorHandler');
 /**
  * POST /api/orders
  * Body: { package_id, booking_date, latitude, longitude, notes?, voucher_id? }
- * CATATAN: field 'discount' dihapus dari body — kalkulasi dilakukan di backend
  */
 const createOrder = async (req, res, next) => {
   try {
@@ -21,13 +20,11 @@ const createOrder = async (req, res, next) => {
 
     const pkg = pkgs[0];
 
-    // Hitung total setelah diskon voucher — kalkulasi dilakukan di backend
     let totalPrice = parseFloat(pkg.price);
     let appliedDiscount = 0;
     let appliedVoucherId = null;
 
     if (voucher_id) {
-      // Validasi voucher: aktif, belum kadaluarsa, belum habis kuota
       const [vouchers] = await db.query(
         `SELECT * FROM vouchers WHERE id = ? AND is_active = 1
          AND (valid_from IS NULL OR valid_from <= CURDATE())
@@ -39,29 +36,24 @@ const createOrder = async (req, res, next) => {
       if (vouchers.length > 0) {
         const v = vouchers[0];
 
-        // Cek minimum order
         if (totalPrice >= parseFloat(v.min_order)) {
           if (v.type === 'percent') {
             appliedDiscount = (totalPrice * parseFloat(v.value)) / 100;
-            // Terapkan batas maksimal diskon jika ada
             if (v.max_discount) {
               appliedDiscount = Math.min(appliedDiscount, parseFloat(v.max_discount));
             }
           } else {
-            // type === 'fixed'
             appliedDiscount = parseFloat(v.value);
           }
 
           totalPrice = Math.max(0, totalPrice - appliedDiscount);
           appliedVoucherId = v.id;
 
-          // Increment used_count
           await db.query(
             'UPDATE vouchers SET used_count = used_count + 1 WHERE id = ?',
             [v.id]
           );
         } else {
-          // Order di bawah minimum, tolak voucher
           return next(
             createError(
               `Voucher hanya berlaku untuk order minimal Rp ${parseFloat(v.min_order).toLocaleString('id-ID')}`,
@@ -70,7 +62,6 @@ const createOrder = async (req, res, next) => {
           );
         }
       } else {
-        // Voucher tidak valid / sudah kadaluarsa / habis kuota
         return next(createError('Voucher tidak valid atau sudah kadaluarsa', 422));
       }
     }
@@ -112,8 +103,6 @@ const createOrder = async (req, res, next) => {
 
 /**
  * POST /api/orders/upload-payment
- * Upload bukti pembayaran (multipart/form-data)
- * Body: { order_id }, File: payment_proof
  */
 const uploadPaymentProof = async (req, res, next) => {
   try {
@@ -123,7 +112,6 @@ const uploadPaymentProof = async (req, res, next) => {
     if (!file) return next(createError('File bukti pembayaran wajib diunggah', 422));
     if (!order_id) return next(createError('order_id wajib diisi', 422));
 
-    // Validasi order milik user ini
     const [orders] = await db.query(
       'SELECT id, user_id, status FROM orders WHERE id = ?', [order_id]
     );
@@ -134,7 +122,6 @@ const uploadPaymentProof = async (req, res, next) => {
 
     const imageUrl = `/uploads/payments/${file.filename}`;
 
-    // Update payment record dengan bukti
     await db.query(
       `UPDATE payments
        SET payment_proof = ?, payment_status = 'waiting_confirmation', updated_at = NOW()
@@ -142,7 +129,6 @@ const uploadPaymentProof = async (req, res, next) => {
       [imageUrl, order_id]
     );
 
-    // Notifikasi ke admin
     const [admins] = await db.query(
       "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 LIMIT 1"
     );
@@ -164,48 +150,101 @@ const uploadPaymentProof = async (req, res, next) => {
 /**
  * GET /api/orders/user/:user_id
  */
-const getOrdersByUser = async (req, res, next) => {
-  try {
-    const { user_id } = req.params;
-    const { status } = req.query;
+  const getOrdersByUser = async (req, res, next) => {
+    try {
+      // ✅ FIX: Ambil dari query param, tapi bisa juga dari path param
+      let user_id = req.query.user_id || req.params.user_id;
+      const { status } = req.query;
 
-    if (req.user.role === 'pelanggan' && String(req.user.id) !== user_id) {
-      return next(createError('Tidak diizinkan', 403));
+      console.log('🔍 [getOrdersByUser] user_id:', user_id);
+      console.log('👤 [getOrdersByUser] Current user:', req.user);
+
+      // ✅ PENTING: Jika tidak ada user_id, gunakan user yang login (untuk pelanggan)
+      if (!user_id) {
+        if (req.user.role === 'admin') {
+          console.log('❌ ERROR: Admin harus specify user_id=all atau user_id={id}');
+          return res.status(400).json({
+            success: false,
+            message: 'Admin harus specify user_id parameter'
+          });
+        }
+        // Pelanggan: otomatis ambil pesanan mereka sendiri
+        user_id = req.user.id;
+        console.log('📌 Auto-set user_id untuk pelanggan:', user_id);
+      }
+
+      // ✅ PENTING: Hanya admin bisa akses 'all'
+      if (user_id === 'all' && req.user.role !== 'admin') {
+        console.log('❌ REJECTED: Only admin can access all orders');
+        return res.status(403).json({
+          success: false,
+          message: 'Hanya admin yang bisa melihat semua pesanan'
+        });
+      }
+
+      // ✅ Pelanggan hanya bisa lihat pesanan mereka sendiri
+      if (req.user.role === 'pelanggan' && String(req.user.id) !== String(user_id)) {
+        console.log('❌ REJECTED: Pelanggan hanya bisa lihat pesanan sendiri');
+        return next(createError('Tidak diizinkan', 403));
+      }
+
+      let query = `
+        SELECT
+          o.*,
+          p.name   AS package_name,
+          p.image  AS package_image,
+          d.name   AS driver_name,
+          d.phone  AS driver_phone,
+          py.payment_status,
+          py.amount AS payment_amount,
+          py.payment_proof,
+          py.currency
+        FROM orders o
+        JOIN packages p ON o.package_id = p.id
+        LEFT JOIN users   d  ON o.driver_id  = d.id
+        LEFT JOIN payments py ON o.id = py.order_id
+      `;
+
+      const params = [];
+
+      // ✅ Handle 'all' untuk admin vs specific user
+      if (user_id !== 'all') {
+        query += ' WHERE o.user_id = ?';
+        params.push(parseInt(user_id));
+        if (status) {
+          query += ' AND o.status = ?';
+          params.push(status);
+        }
+      } else {
+        // Admin: fetch semua orders
+        if (status) {
+          query += ' WHERE o.status = ?';
+          params.push(status);
+        }
+      }
+
+      query += ' ORDER BY o.created_at DESC';
+
+      console.log('📊 SQL Query:', query);
+      console.log('📋 SQL Params:', params);
+
+      const [rows] = await db.query(query, params);
+
+      console.log('✅ Query Success! Found', rows.length, 'orders');
+      
+      if (rows.length > 0) {
+        console.log('📦 Sample orders:');
+        rows.slice(0, 3).forEach(o => {
+          console.log(`  - Order #${o.id}: ${o.package_name} (${o.status})`);
+        });
+      }
+
+      return sendSuccess(res, rows);
+    } catch (err) {
+      console.error('❌ ERROR:', err.message);
+      next(err);
     }
-
-    let query = `
-      SELECT
-        o.*,
-        p.name   AS package_name,
-        p.image  AS package_image,
-        d.name   AS driver_name,
-        d.phone  AS driver_phone,
-        py.payment_status,
-        py.amount AS payment_amount,
-        py.payment_proof,
-        py.currency
-      FROM orders o
-      JOIN packages p ON o.package_id = p.id
-      LEFT JOIN users   d  ON o.driver_id  = d.id
-      LEFT JOIN payments py ON o.id = py.order_id
-    `;
-
-    const params = [];
-    if (user_id !== 'all') {
-      query += ' WHERE o.user_id = ?';
-      params.push(user_id);
-      if (status) { query += ' AND o.status = ?'; params.push(status); }
-    } else {
-      if (status) { query += ' WHERE o.status = ?'; params.push(status); }
-    }
-
-    query += ' ORDER BY o.created_at DESC';
-    const [rows] = await db.query(query, params);
-    return sendSuccess(res, rows);
-  } catch (err) {
-    next(err);
-  }
-};
+  };
 
 /**
  * GET /api/orders/:id
@@ -249,7 +288,7 @@ const getOrderById = async (req, res, next) => {
 };
 
 /**
- * POST /api/assign-driver  — admin only
+ * POST /api/assign-driver
  */
 const assignDriver = async (req, res, next) => {
   try {
@@ -288,7 +327,7 @@ const assignDriver = async (req, res, next) => {
 };
 
 /**
- * POST /api/orders/respond  — supir only
+ * POST /api/orders/respond
  */
 const respondOrder = async (req, res, next) => {
   try {
@@ -357,7 +396,7 @@ const respondOrder = async (req, res, next) => {
 };
 
 /**
- * GET /api/orders/driver-active  — supir only
+ * GET /api/orders/driver-active
  */
 const getDriverActiveOrders = async (req, res, next) => {
   try {
@@ -379,7 +418,7 @@ const getDriverActiveOrders = async (req, res, next) => {
 };
 
 /**
- * GET /api/orders/driver-incoming  — supir only
+ * GET /api/orders/driver-incoming
  */
 const getIncomingOrders = async (req, res, next) => {
   try {
@@ -401,7 +440,7 @@ const getIncomingOrders = async (req, res, next) => {
 };
 
 /**
- * POST /api/update-status  — supir & admin
+ * POST /api/update-status
  */
 const updateOrderStatus = async (req, res, next) => {
   try {
@@ -442,7 +481,7 @@ const updateOrderStatus = async (req, res, next) => {
 };
 
 /**
- * PUT /api/orders/:id/location  — pelanggan
+ * PUT /api/orders/:id/location
  */
 const updateOrderLocation = async (req, res, next) => {
   try {
@@ -465,7 +504,7 @@ const updateOrderLocation = async (req, res, next) => {
 };
 
 /**
- * GET /api/drivers  — admin only
+ * GET /api/drivers
  */
 const getDrivers = async (req, res, next) => {
   try {
@@ -479,8 +518,7 @@ const getDrivers = async (req, res, next) => {
 };
 
 /**
- * GET /api/orders/:id/driver-location  — pelanggan
- * Ambil lokasi supir terkini untuk ditampilkan di peta
+ * GET /api/orders/:id/driver-location
  */
 const getDriverLocation = async (req, res, next) => {
   try {
@@ -500,9 +538,7 @@ const getDriverLocation = async (req, res, next) => {
 };
 
 /**
- * PUT /api/orders/:id/driver-location  — supir only
- * Supir update lokasi real-time saat perjalanan ongoing
- * Body: { latitude, longitude }
+ * PUT /api/orders/:id/driver-location
  */
 const updateDriverLocation = async (req, res, next) => {
   try {
@@ -526,18 +562,19 @@ const updateDriverLocation = async (req, res, next) => {
   }
 };
 
+// ─── EXPORT (HANYA 1x, paling bawah) ───────────────────────────
 module.exports = {
   createOrder,
   uploadPaymentProof,
-  getDriverLocation,
-  updateDriverLocation,
   getOrdersByUser,
   getOrderById,
   assignDriver,
   respondOrder,
-  getIncomingOrders,
   getDriverActiveOrders,
+  getIncomingOrders,
   updateOrderStatus,
   updateOrderLocation,
   getDrivers,
+  getDriverLocation,
+  updateDriverLocation,
 };

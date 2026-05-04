@@ -224,7 +224,7 @@ class _LandingScreenState extends State<LandingScreen>
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontFamily: 'Poppins',
-                                  color: Colors.white.withOpacity(0.85),
+                                  color: const Color.fromARGB(255, 0, 0, 0).withOpacity(0.85),
                                 ),
                               ),
                               GestureDetector(
@@ -235,7 +235,7 @@ class _LandingScreenState extends State<LandingScreen>
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontFamily: 'Poppins',
-                                    color: Colors.white,
+                                    color: Color.fromARGB(255, 96, 56, 226),
                                     fontWeight: FontWeight.w700,
                                     decoration: TextDecoration.underline,
                                     decorationColor: Colors.white,
