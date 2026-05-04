@@ -5,3 +5,4 @@ export 'order_model.dart';
 export 'notification_model.dart';
 export 'feedback_model.dart';
 export 'game_model.dart';
+export 'location_model.dart';

@@ -147,48 +147,68 @@ class OrderService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> fetchOrders(int userId) async {
+    Future<void> fetchOrders(int userId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
-      final res = await ApiClient().dio.get('/orders/user/$userId');
+      final res = await ApiClient().dio.get(
+        '/orders',  // ← Endpoint general
+        queryParameters: {'user_id': userId.toString()},
+      );
+      
       if (res.data['success'] == true) {
         _orders = (res.data['data'] as List)
             .map((e) => OrderModel.fromJson(e))
             .toList();
+        debugPrint('✅ Orders loaded: ${_orders.length}');
+      } else {
+        _error = res.data['message'];
       }
     } catch (e) {
       _error = extractErrorMessage(e);
+      debugPrint('❌ Error: $_error');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
+
   // FIX: backend sudah support user_id='all' di GET /orders/user/:user_id
   // sehingga endpoint /orders/user/all valid dan tidak perlu route baru
-  Future<void> fetchAllOrders({String? status}) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
-      final res = await ApiClient().dio.get(
-        '/orders/user/all',
-        queryParameters: status != null ? {'status': status} : null,
-      );
-      if (res.data['success'] == true) {
-        _orders = (res.data['data'] as List)
-            .map((e) => OrderModel.fromJson(e))
-            .toList();
-      }
-    } catch (e) {
-      _error = extractErrorMessage(e);
-    } finally {
-      _isLoading = false;
+    Future<void> fetchAllOrders({String? status}) async {
+      _isLoading = true;
+      _error = null;
       notifyListeners();
+      try {
+        // ✅ Gunakan query parameter
+        final res = await ApiClient().dio.get(
+          '/orders',  // ← Ganti ke endpoint general
+          queryParameters: {
+            'user_id': 'all',  // ← Pass user_id sebagai query param
+            if (status != null) 'status': status,
+          },
+        );
+        
+        debugPrint('✅ Response: ${res.statusCode}');
+        
+        if (res.data['success'] == true) {
+          _orders = (res.data['data'] as List)
+              .map((e) => OrderModel.fromJson(e))
+              .toList();
+          debugPrint('✅ Orders loaded: ${_orders.length}');
+        } else {
+          _error = res.data['message'];
+        }
+      } catch (e) {
+        _error = extractErrorMessage(e);
+        debugPrint('❌ Error: $_error');
+      } finally {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
-  }
 
   Future<OrderModel?> createOrder({
     required int packageId,

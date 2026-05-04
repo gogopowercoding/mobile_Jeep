@@ -41,6 +41,15 @@ const upload = multer({
   },
 });
 
+router.use((req, res, next) => {
+  console.log(`\n📍 [Route Hit] ${req.method} ${req.path}`);
+  console.log('   Full URL:', req.originalUrl);
+  console.log('   Params:', req.params);
+  console.log('   Query:', req.query);
+  next();
+});
+
+
 // ── Routes spesifik HARUS di atas /:id agar tidak konflik ──
 router.post('/',               authenticate, createOrder);
 router.post('/upload-payment', authenticate, upload.single('payment_proof'), uploadPaymentProof);
@@ -52,8 +61,7 @@ router.get('/drivers',         authenticate, getDrivers);
 // FIX: route /user/all harus didaftarkan SEBELUM /user/:user_id
 // agar Express tidak menganggap 'all' sebagai nilai :user_id
 // Hanya admin yang boleh mengakses semua order
-router.get('/user/all',        authenticate, authorize('admin'), getOrdersByUser);
-router.get('/user/:user_id',   authenticate, getOrdersByUser);
+router.get('/',                authenticate, getOrdersByUser);  // GET /orders?user_id=all atau /orders?user_id=6
 
 router.get('/driver-active',   authenticate, getDriverActiveOrders);
 router.get('/driver-incoming', authenticate, getIncomingOrders);

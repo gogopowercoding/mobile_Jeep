@@ -10,12 +10,13 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Google Fonts
+  # Google Service
   google_fonts: ^6.2.1
+  google_maps_flutter: ^2.6.0
 
   # HTTP & API
   http: ^1.2.1
-  dio: ^5.4.3
+  dio: ^5.4.0
 
   # State Management
   provider: ^6.1.2
