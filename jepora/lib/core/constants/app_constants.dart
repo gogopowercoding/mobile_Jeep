@@ -4,7 +4,7 @@ class AppConstants {
   // static const String baseUrl = 'http://10.0.2.2:3000/api';
 
   // Device fisik: IP komputer kamu, untuk testing di hp
-  static const String baseUrl = 'http://192.168.93.245:3000/api';
+  static const String baseUrl = 'http://192.168.54.245:3000/api';
 
   // Storage keys
   static const String tokenKey       = 'auth_token';

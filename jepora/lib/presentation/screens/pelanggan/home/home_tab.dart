@@ -244,7 +244,7 @@ class _HomeTabState extends State<HomeTab> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 14,
                       mainAxisSpacing: 14,
-                      childAspectRatio: 0.72,
+                      childAspectRatio: 0.68,
                     ),
                   ),
                 )
@@ -284,7 +284,7 @@ class _HomeTabState extends State<HomeTab> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 14,
                       mainAxisSpacing: 14,
-                      childAspectRatio: 0.72,
+                      childAspectRatio: 0.68,
                     ),
                   ),
                 ),

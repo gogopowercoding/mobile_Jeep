@@ -196,56 +196,61 @@ class PackageCard extends StatelessWidget {
                     )
                   : _placeholderImage(),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name,
-                    style: AppTextStyles.label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatPrice(price),
-                    style: AppTextStyles.price,
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text('${duration} jam', style: AppTextStyles.caption),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Tombol Booking
-                  SizedBox(
-                    width: double.infinity,
-                    height: 32,
-                    child: ElevatedButton(
-                      onPressed: onBook ?? onTap,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+            // Gunakan Expanded agar konten mengisi sisa ruang,
+            // sehingga tombol Booking tidak terpotong di HP
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                      style: AppTextStyles.label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatPrice(price),
+                      style: AppTextStyles.price,
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text('${duration} jam', style: AppTextStyles.caption),
+                      ],
+                    ),
+                    // Spacer mendorong tombol ke bawah card
+                    const Spacer(),
+                    // Tombol Booking
+                    SizedBox(
+                      width: double.infinity,
+                      height: 34,
+                      child: ElevatedButton(
+                        onPressed: onBook ?? onTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'Booking',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'Poppins',
+                        child: const Text(
+                          'Booking',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Poppins',
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -260,7 +265,7 @@ class PackageCard extends StatelessWidget {
   }
 
   Widget _placeholderImage() => Container(
-    height: 110, width: double.infinity,
+    height: 100, width: double.infinity,
     color: AppColors.primaryLight,
     child: const Icon(Icons.landscape_rounded, size: 40, color: AppColors.primary),
   );
