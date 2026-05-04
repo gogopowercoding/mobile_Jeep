@@ -776,7 +776,8 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
             .read<PackageService>()
             .updateSchedule(widget.existing!.id, data);
       } else {
-        ok = await context.read<PackageService>().createSchedule(data);
+        // FIX: createSchedule sekarang butuh packageId sebagai argumen pertama
+        ok = await context.read<PackageService>().createSchedule(widget.packageId, data);
       }
 
       if (!mounted) return;

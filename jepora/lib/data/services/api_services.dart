@@ -45,13 +45,14 @@ class PackageService extends ChangeNotifier {
   }
 
   // ─── SCHEDULE (PER PACKAGE) ───────────────
+  // FIX: endpoint disesuaikan dengan backend /packages/:id/schedules
   Future<List<ScheduleModel>> fetchSchedules(int packageId) async {
     _scheduleLoading[packageId] = true;
     notifyListeners();
 
     try {
       final res = await ApiClient().dio.get(
-        '/package-schedules/$packageId',
+        '/packages/$packageId/schedules',
       );
 
       if (res.data['success'] == true) {
@@ -79,9 +80,10 @@ class PackageService extends ChangeNotifier {
       _scheduleCache[packageId] ?? [];
 
   // ─── DELETE SCHEDULE ─────────────────────
+  // FIX: endpoint disesuaikan dengan backend /schedules/:id
   Future<void> deleteSchedule(int id, int packageId) async {
     try {
-      await ApiClient().dio.delete('/package-schedules/$id');
+      await ApiClient().dio.delete('/schedules/$id');
 
       _scheduleCache[packageId]
           ?.removeWhere((e) => e.id == id);
@@ -93,10 +95,11 @@ class PackageService extends ChangeNotifier {
   }
 
   // ─── CRUD SCHEDULE ───────────────────────
-  Future<bool> createSchedule(Map<String, dynamic> data) async {
+  // FIX: POST ke /packages/:id/schedules sesuai backend
+  Future<bool> createSchedule(int packageId, Map<String, dynamic> data) async {
     try {
       final res = await ApiClient().dio.post(
-        '/package-schedules',
+        '/packages/$packageId/schedules',
         data: data,
       );
       return res.data['success'] == true;
@@ -105,10 +108,11 @@ class PackageService extends ChangeNotifier {
     }
   }
 
+  // FIX: PUT ke /schedules/:id sesuai backend
   Future<bool> updateSchedule(int id, Map<String, dynamic> data) async {
     try {
       final res = await ApiClient().dio.put(
-        '/package-schedules/$id',
+        '/schedules/$id',
         data: data,
       );
       return res.data['success'] == true;
@@ -162,12 +166,15 @@ class OrderService extends ChangeNotifier {
     }
   }
 
+  // FIX: backend sudah support user_id='all' di GET /orders/user/:user_id
+  // sehingga endpoint /orders/user/all valid dan tidak perlu route baru
   Future<void> fetchAllOrders({String? status}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
-      final res = await ApiClient().dio.get('/orders/user/all',
+      final res = await ApiClient().dio.get(
+        '/orders/user/all',
         queryParameters: status != null ? {'status': status} : null,
       );
       if (res.data['success'] == true) {
@@ -307,13 +314,15 @@ class NotificationService extends ChangeNotifier {
 
 // ─── CURRENCY SERVICE ────────────────────────────────────────
 class CurrencyService {
+  // FIX: endpoint disesuaikan dengan backend GET /payments/convert/rate
   static Future<Map<String, dynamic>?> convert({
     required double amount,
     required String from,
     required String to,
   }) async {
     try {
-      final res = await ApiClient().dio.get('/convert',
+      final res = await ApiClient().dio.get(
+        '/payments/convert/rate',
         queryParameters: {'amount': amount, 'from': from, 'to': to},
       );
       if (res.data['success'] == true) return res.data['data'];
@@ -322,20 +331,7 @@ class CurrencyService {
   }
 }
 
-// ─── FEEDBACK SERVICE ────────────────────────────────────────
-class FeedbackService {
-  static Future<bool> submit({
-    required String message,
-    required int rating,
-    int? orderId,
-  }) async {
-    try {
-      final res = await ApiClient().dio.post('/notifications/feedback', data: {
-        'message': message,
-        'rating':  rating,
-        if (orderId != null) 'order_id': orderId,
-      });
-      return res.data['success'] == true;
-    } catch (_) { return false; }
-  }
-}
+// ─── CATATAN: FeedbackService dihapus dari file ini ──────────
+// Gunakan FeedbackService dari:
+// lib/data/services/feedback_service.dart
+// (versi lengkap dengan ChangeNotifier dan full CRUD)
