@@ -240,7 +240,23 @@ class AuthService extends ChangeNotifier {
   Future<void> _saveSession(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.tokenKey, data['token']);
-    _user = UserModel.fromJson(data['user']);
+
+    final userData = Map<String, dynamic>.from(data['user'] as Map);
+
+    // FIX: jika server tidak mengembalikan avatar (misal response login lama),
+    // pertahankan avatar yang sudah tersimpan di SharedPreferences
+    // agar gambar profil tidak hilang setelah logout → login kembali.
+    if (userData['avatar'] == null) {
+      final savedUserJson = prefs.getString(AppConstants.userKey);
+      if (savedUserJson != null) {
+        final savedUser = jsonDecode(savedUserJson) as Map<String, dynamic>;
+        if (savedUser['avatar'] != null) {
+          userData['avatar'] = savedUser['avatar'];
+        }
+      }
+    }
+
+    _user = UserModel.fromJson(userData);
     await prefs.setString(AppConstants.userKey, jsonEncode(_user!.toJson()));
     notifyListeners();
   }

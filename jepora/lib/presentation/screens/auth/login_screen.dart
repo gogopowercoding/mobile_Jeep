@@ -126,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
  
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 100),
  
                   // Card form
                   Container(

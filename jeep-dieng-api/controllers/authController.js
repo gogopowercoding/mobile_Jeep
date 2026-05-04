@@ -76,7 +76,7 @@ const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     const [rows] = await db.query(
-      'SELECT id, name, email, password, role, is_active FROM users WHERE email = ?',
+      'SELECT id, name, email, password, role, is_active, avatar FROM users WHERE email = ?',
       [email]
     );
 
@@ -103,7 +103,7 @@ const login = async (req, res, next) => {
 
     return sendSuccess(res, {
       token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, phone: user.phone ?? null, avatar: user.avatar ?? null },
     }, 'Login berhasil');
 
   } catch (err) {

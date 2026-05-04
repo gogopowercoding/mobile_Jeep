@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/api_services.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
+import 'package:provider/provider.dart';
+import 'package:jepora/data/services/feedback_service.dart';
 
 class FeedbackTab extends StatefulWidget {
   const FeedbackTab({super.key});
@@ -25,7 +27,7 @@ class _FeedbackTabState extends State<FeedbackTab> {
       return;
     }
     setState(() => _isLoading = true);
-    final ok = await FeedbackService.submit(
+     final ok = await context.read<FeedbackService>().submit(
       message: _messageCtrl.text.trim(),
       rating: _rating,
     );

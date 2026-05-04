@@ -3,7 +3,7 @@ const express    = require('express');
 const router     = express.Router();
 const multer     = require('multer');
 const path       = require('path');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 const {
   createOrder,
   uploadPaymentProof,
@@ -42,20 +42,26 @@ const upload = multer({
 });
 
 // ── Routes spesifik HARUS di atas /:id agar tidak konflik ──
-router.post('/',                        authenticate, createOrder);
-router.post('/upload-payment',          authenticate, upload.single('payment_proof'), uploadPaymentProof);
-router.post('/assign-driver',           authenticate, assignDriver);
-router.post('/respond',                 authenticate, respondOrder);
-router.post('/update-status',           authenticate, updateOrderStatus);
-router.get('/drivers',                  authenticate, getDrivers);
-router.get('/user/:user_id',            authenticate, getOrdersByUser);
-router.get('/driver-active',            authenticate, getDriverActiveOrders);
-router.get('/driver-incoming',          authenticate, getIncomingOrders);
+router.post('/',               authenticate, createOrder);
+router.post('/upload-payment', authenticate, upload.single('payment_proof'), uploadPaymentProof);
+router.post('/assign-driver',  authenticate, authorize('admin'), assignDriver);
+router.post('/respond',        authenticate, respondOrder);
+router.post('/update-status',  authenticate, updateOrderStatus);
+router.get('/drivers',         authenticate, getDrivers);
+
+// FIX: route /user/all harus didaftarkan SEBELUM /user/:user_id
+// agar Express tidak menganggap 'all' sebagai nilai :user_id
+// Hanya admin yang boleh mengakses semua order
+router.get('/user/all',        authenticate, authorize('admin'), getOrdersByUser);
+router.get('/user/:user_id',   authenticate, getOrdersByUser);
+
+router.get('/driver-active',   authenticate, getDriverActiveOrders);
+router.get('/driver-incoming', authenticate, getIncomingOrders);
 
 // ── Routes dengan parameter :id — HARUS paling bawah ───────
-router.get('/:id',                      authenticate, getOrderById);
-router.put('/:id/location',             authenticate, updateOrderLocation);
-router.get('/:id/driver-location',      authenticate, getDriverLocation);
-router.put('/:id/driver-location',      authenticate, updateDriverLocation);
+router.get('/:id',             authenticate, getOrderById);
+router.put('/:id/location',    authenticate, updateOrderLocation);
+router.get('/:id/driver-location', authenticate, getDriverLocation);
+router.put('/:id/driver-location', authenticate, updateDriverLocation);
 
 module.exports = router;

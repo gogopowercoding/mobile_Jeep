@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:jepora/data/services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,26 +18,35 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkLogin() async {
     await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+
+    // ✅ Pakai AuthService — bukan baca SharedPreferences langsung
+    // Ini memastikan auth.init() selesai (biometric + loginTimestamp ter-load)
+    // sebelum kita cek status login
+    final auth = context.read<AuthService>();
+
+    // Tunggu init selesai jika belum (AuthService.init() dipanggil di provider)
+    // Beri sedikit jeda agar init() yang async selesai duluan
+    int retry = 0;
+    while (auth.user == null && auth.isLoading == false && retry < 10) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      retry++;
+    }
 
     if (!mounted) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    final role  = prefs.getString('role');
-
-    if (!mounted) return;
-
-    if (token == null) {
-      Navigator.pushReplacementNamed(context, '/login');
+    if (!auth.isLoggedIn) {
+      Navigator.pushReplacementNamed(context, '/landing');
       return;
     }
 
-    // Arahkan sesuai role
+    // ✅ Baca role dari AuthService, bukan dari prefs langsung
+    final role = auth.user?.role;
     switch (role) {
       case 'admin':
         Navigator.pushReplacementNamed(context, '/admin');
         break;
-      case 'driver':
+      case 'supir':
         Navigator.pushReplacementNamed(context, '/driver');
         break;
       default:

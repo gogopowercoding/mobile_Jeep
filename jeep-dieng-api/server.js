@@ -71,7 +71,7 @@ app.use(errorHandler);
 
 // ─── Start server ─────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT,'0.0.0.0', () => {
   console.log(`🚙  Jeep Dieng API running on http://localhost:${PORT}`);
   console.log(`📋  Docs: http://localhost:${PORT}/api/health`);
 });
