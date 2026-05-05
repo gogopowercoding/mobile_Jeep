@@ -84,7 +84,7 @@ class AuthService extends ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
-      final res = await ApiClient().dio.post('/register', data: {
+      final res = await ApiClient().dio.post('/auth/register', data: {
         'name': name, 'email': email,
         'password': password, 'phone': phone,
       });
@@ -106,16 +106,26 @@ class AuthService extends ChangeNotifier {
   Future<bool> login({required String email, required String password}) async {
     _setLoading(true);
     try {
-      final res = await ApiClient().dio.post('/login', data: {
+      print('🔍 [LOGIN] Email: $email');
+      print('🔍 [LOGIN] Calling: /auth/login');
+      
+      final res = await ApiClient().dio.post('/auth/login', data: {
         'email': email, 'password': password,
       });
+      
+      print('🔍 [LOGIN] Response: ${res.data}');
+      print('🔍 [LOGIN] Status: ${res.statusCode}');
+      
       if (res.data['success'] == true) {
         await _saveSession(res.data['data']);
+        print('✅ [LOGIN] Success!');
         return true;
       }
       _error = res.data['message'];
+      print('❌ [LOGIN] Failed: ${res.data['message']}');
       return false;
     } catch (e) {
+      print('❌ [LOGIN] Exception: $e');
       _error = extractErrorMessage(e);
       return false;
     } finally {
@@ -123,9 +133,6 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ─── BIOMETRIC LOGIN ─────────────────────────────────────────
-  // Token disimpan di SharedPreferences, bukan data biometric
-  // Biometric hanya sebagai "kunci" untuk membuka token yang sudah tersimpan
   Future<bool> loginWithBiometric() async {
     try {
       // Re-cek availability sebelum authenticate (bisa berubah saat runtime)
@@ -214,7 +221,7 @@ class AuthService extends ChangeNotifier {
       });
 
       final res = await ApiClient().dio.put(
-        '/profile',
+        '/auth/profile',
         data: formData,
         options: Options(contentType: 'multipart/form-data'),
       );

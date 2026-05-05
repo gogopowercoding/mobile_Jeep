@@ -10,6 +10,7 @@ class ApiClient {
   late final Dio _dio;
 
   void init() {
+    print('🔍 [API] Base URL: ${AppConstants.baseUrl}');
     _dio = Dio(BaseOptions(
       baseUrl:        AppConstants.baseUrl,
       connectTimeout: const Duration(milliseconds: AppConstants.connectTimeout),
