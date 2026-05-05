@@ -42,74 +42,79 @@ class AppBottomNavBar extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,  // ← GANTI jadi spaceEvenly
             children: List.generate(items.length, (i) {
               final item   = items[i];
               final active = currentIndex == i;
-              return GestureDetector(
-                onTap: () => onTap(i),
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: active
-                        ? AppColors.primaryLight
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Icon(item.icon,
-                            size: 22,
-                            color: active
-                                ? AppColors.primary
-                                : AppColors.textHint),
-                          if (item.badgeCount > 0)
-                            Positioned(
-                              right: -6, top: -4,
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.error,
-                                  shape: BoxShape.circle,
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 16, minHeight: 16),
-                                child: Text(
-                                  item.badgeCount > 99
-                                      ? '99+'
-                                      : '${item.badgeCount}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    fontFamily: 'Poppins',
+              return Expanded(  // ← WRAP dengan Expanded
+                child: GestureDetector(
+                  onTap: () => onTap(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),  // ← TAMBAH margin
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),  // ← KURANGI padding (dari 16)
+                    decoration: BoxDecoration(
+                      color: active
+                          ? AppColors.primaryLight
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(item.icon,
+                              size: 22,
+                              color: active
+                                  ? AppColors.primary
+                                  : AppColors.textHint),
+                            if (item.badgeCount > 0)
+                              Positioned(
+                                right: -6, top: -4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.error,
+                                    shape: BoxShape.circle,
                                   ),
-                                  textAlign: TextAlign.center,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 16, minHeight: 16),
+                                  child: Text(
+                                    item.badgeCount > 99
+                                        ? '99+'
+                                        : '${item.badgeCount}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Text(item.label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontFamily: 'Poppins',
-                          fontWeight: active
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: active
-                              ? AppColors.primary
-                              : AppColors.textHint,
-                        )),
-                    ],
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(item.label,
+                          style: TextStyle(
+                            fontSize: 10,  // ← KURANGI dari 11
+                            fontFamily: 'Poppins',
+                            fontWeight: active
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: active
+                                ? AppColors.primary
+                                : AppColors.textHint,
+                          ),
+                          overflow: TextOverflow.ellipsis,  // ← TAMBAH overflow handler
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

@@ -5,6 +5,7 @@ import 'core/network/api_client.dart';
 import 'data/services/auth_service.dart';
 import 'data/services/api_services.dart';
 import 'data/services/admin_notification_service.dart';
+import 'package:jepora/data/services/analytics_service.dart';
 import 'data/services/feedback_service.dart';
 import 'presentation/screens/auth/splash_screen.dart';
 import 'presentation/screens/auth/landing_screen.dart';
@@ -49,8 +50,8 @@ class JeepOraApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OrderService()),
         ChangeNotifierProvider(create: (_) => NotificationService()),
         ChangeNotifierProvider(create: (_) => AdminNotificationService()),
-        // FIX: FeedbackService didaftarkan agar bisa diakses via context.read
         ChangeNotifierProvider(create: (_) => FeedbackService()),
+        ChangeNotifierProvider(create: (_) => AnalyticsService()),
       ],
       child: MaterialApp(
         title: 'JeepOra',
@@ -71,8 +72,6 @@ class JeepOraApp extends StatelessWidget {
           '/orders':              (_) => const OrdersHistoryScreen(),
           '/upload-payment':      (_) => const UploadPaymentScreen(),
           '/driver-tracking':     (_) => const DriverTrackingScreen(),
-          // FIX: route /packages ditambahkan — dipakai di home_tab.dart baris 230
-          // Mengarah ke MainScreen karena packages ada sebagai tab di dalamnya
           '/packages':            (_) => const MainScreen(),
           '/package-detail':      (_) => const PackageDetailScreen(),
           '/timezone':            (_) => const TimeZoneConverterScreen(),
@@ -82,6 +81,7 @@ class JeepOraApp extends StatelessWidget {
           // ── Admin ─────────────────────────────────────────────
           '/admin':               (_) => const AdminScreen(),
           '/admin/package-form':  (_) => const AdminPackageFormScreen(),
+          
 
           // ── Supir ─────────────────────────────────────────────
           '/driver':              (_) => const DriverScreen(),

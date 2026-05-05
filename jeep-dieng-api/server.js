@@ -23,19 +23,22 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.resolve(uploadPath)));
 
 // ─── Routes ───────────────────────────────────────────────────
-const authRoutes    = require('./routes/auth');
-const packageRoutes = require('./routes/packages');
-const orderRoutes   = require('./routes/orders');
+const authRoutes      = require('./routes/auth');
+const packageRoutes   = require('./routes/packages');
+const orderRoutes     = require('./routes/orders');
+const analyticsRouter = require('./routes/analytics');
 
 // Payment & notification dari extra.js (karena berbagi satu file)
 const { paymentRouter, notificationRouter } = require('./routes/extra');
 
-app.use('/api',               authRoutes);
+app.use('/api/auth',          authRoutes);
 app.use('/api/packages',      packageRoutes);
 app.use('/api/orders',        orderRoutes);
 app.use('/api/payments',      paymentRouter);
 app.use('/api/notifications', notificationRouter);
-app.use('/api', require('./routes/packageSchedule'));
+app.use('/api/analytics',     analyticsRouter);
+app.use('/api',               require('./routes/packageSchedule'));
+
 
 // ─── Currency convert shortcut ────────────────────────────────
 // GET /api/convert?amount=350000&from=IDR&to=USD

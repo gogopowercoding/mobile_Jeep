@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jepora/presentation/screens/admin/tabs/admin_analytics_tab.dart';
 import 'package:provider/provider.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/admin_notification_service.dart';
@@ -8,6 +9,7 @@ import 'tabs/admin_dashboard_tab.dart';
 import 'tabs/admin_orders_tab.dart';
 import 'tabs/admin_packages_tab.dart';
 import 'tabs/admin_profile_tab.dart';
+
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -22,6 +24,7 @@ class _AdminScreenState extends State<AdminScreen> {
   static const _tabs = [
     AdminDashboardTab(),
     AdminOrdersTab(),
+    AdminAnalyticsTab(),
     AdminPackagesTab(),
     AdminProfileTab(),
   ];
@@ -115,6 +118,7 @@ class _AdminScreenState extends State<AdminScreen> {
         items: const [
           NavItemData(icon: Icons.dashboard_rounded,  label: 'Dashboard'),
           NavItemData(icon: Icons.list_alt_rounded,   label: 'Pesanan'),
+          NavItemData(icon: Icons.analytics_rounded, label: 'Analytics'),
           NavItemData(icon: Icons.landscape_rounded,  label: 'Paket'),
           NavItemData(icon: Icons.person_rounded,     label: 'Profil'),
         ],

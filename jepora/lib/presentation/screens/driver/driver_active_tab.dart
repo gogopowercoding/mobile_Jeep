@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
@@ -369,59 +370,278 @@ class _InfoRow extends StatelessWidget {
 }
 
 // ─── CUSTOMER LOCATION MAP SCREEN ────────────────────────────
-class CustomerLocationMapScreen extends StatelessWidget {
+// ─── CUSTOMER LOCATION MAP SCREEN (dengan kompas) ─────────────
+class CustomerLocationMapScreen extends StatefulWidget {
   final OrderModel order;
 
   const CustomerLocationMapScreen({super.key, required this.order});
 
   @override
+  State<CustomerLocationMapScreen> createState() =>
+      _CustomerLocationMapScreenState();
+}
+
+class _CustomerLocationMapScreenState extends State<CustomerLocationMapScreen> {
+  final MapController _mapController = MapController();
+  double _heading = 0.0; // Heading dari kompas (0-360 derajat)
+  StreamSubscription<CompassEvent>? _compassSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCompass();
+  }
+
+  void _initCompass() {
+    // Listen ke kompas
+    _compassSubscription = FlutterCompass.events?.listen((event) {
+      if (mounted) {
+        setState(() {
+          _heading = event.heading ?? 0.0;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _compassSubscription?.cancel();
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final lat = order.latitude!;
-    final lng = order.longitude!;
+    final lat = widget.order.latitude!;
+    final lng = widget.order.longitude!;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Lokasi Pelanggan — Order #${order.id}'),
+        title: Text('Lokasi Pelanggan — Order #${widget.order.id}'),
       ),
-      body: FlutterMap(
-        options: MapOptions(
-          initialCenter: LatLng(lat, lng),
-          initialZoom: 15,
-        ),
+      body: Stack(
         children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.jeepora.app',
-          ),
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: LatLng(lat, lng),
-                width: 70,
-                height: 70,
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.person_pin_rounded,
-                          color: Colors.white, size: 26),
+          // ── Map ──────────────────────────────────────────
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: LatLng(lat, lng),
+              initialZoom: 15,
+              rotation: _heading, // ✅ Rotate map berdasarkan heading
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.jeepora.app',
+              ),
+              // ── Marker lokasi pelanggan ──────────────────
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: LatLng(lat, lng),
+                    width: 70,
+                    height: 70,
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.person_pin_rounded,
+                              color: Colors.white, size: 26),
+                        ),
+                        const Text('Pelanggan',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryDark,
+                              fontFamily: 'Poppins',
+                            )),
+                      ],
                     ),
-                    const Text('Pelanggan',
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // ── Kompas (pojok kanan atas) ────────────────────
+          Positioned(
+            top: 80,
+            right: 16,
+            child: _CompassWidget(heading: _heading),
+          ),
+
+          // ── Info Panel (bawah) ───────────────────────────
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _LocationInfoPanel(order: widget.order),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── KOMPAS WIDGET ───────────────────────────────────────────
+class _CompassWidget extends StatelessWidget {
+  final double heading;
+
+  const _CompassWidget({required this.heading});
+
+  String _getDirection(double heading) {
+    if (heading >= 337.5 || heading < 22.5) return 'U';      // Utara
+    if (heading >= 22.5 && heading < 67.5) return 'TL';      // Timur Laut
+    if (heading >= 67.5 && heading < 112.5) return 'T';      // Timur
+    if (heading >= 112.5 && heading < 157.5) return 'TG';    // Tenggara
+    if (heading >= 157.5 && heading < 202.5) return 'S';     // Selatan
+    if (heading >= 202.5 && heading < 247.5) return 'BD';    // Barat Daya
+    if (heading >= 247.5 && heading < 292.5) return 'B';     // Barat
+    return 'BL'; // Barat Laut
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.divider, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Background lingkaran dengan arah
+          Transform.rotate(
+            angle: heading * (3.14159 / 180), // Convert heading ke radian
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: 3,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Teks heading & arah
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                heading.toStringAsFixed(0) + '°',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Poppins',
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _getDirection(heading),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocationInfoPanel extends StatelessWidget {
+  final OrderModel order;
+
+  const _LocationInfoPanel({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.location_on_rounded,
+                  color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Titik Penjemputan',
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primaryDark,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                           fontFamily: 'Poppins',
+                          color: AppColors.textSecondary,
                         )),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${order.latitude!.toStringAsFixed(6)}, ${order.longitude!.toStringAsFixed(6)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
+          if (order.notes != null && order.notes!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: AppColors.divider),
+            const SizedBox(height: 12),
+            Text('Catatan Pelanggan:',
+                style: AppTextStyles.caption),
+            const SizedBox(height: 4),
+            Text(order.notes!,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontFamily: 'Poppins',
+                  color: AppColors.textPrimary,
+                )),
+          ],
         ],
       ),
     );

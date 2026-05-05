@@ -1,8 +1,9 @@
-export 'user_model.dart';
-export 'package_model.dart';
-export 'schedule_model.dart';
-export 'order_model.dart';
-export 'notification_model.dart';
+export 'analytics_model.dart';
 export 'feedback_model.dart';
 export 'game_model.dart';
 export 'location_model.dart';
+export 'notification_model.dart';
+export 'order_model.dart';
+export 'package_model.dart';
+export 'schedule_model.dart';
+export 'user_model.dart';
