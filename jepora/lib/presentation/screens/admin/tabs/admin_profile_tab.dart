@@ -129,14 +129,9 @@ class _AdminProfileTabState extends State<AdminProfileTab> {
                       icon: Icons.logout_rounded,
                       label: 'Keluar',
                       isDestructive: true,
-                      onTap: () async {
-                        await auth.logout();
-                        Navigator.pushNamedAndRemoveUntil(
-                            context, '/login', (_) => false);
-                      },
+                      onTap: () => _confirmLogout(context, auth),
                     ),
                   ]),
-
                   const SizedBox(height: 32),
                 ],
               ),
@@ -147,6 +142,32 @@ class _AdminProfileTabState extends State<AdminProfileTab> {
     );
   }
 }
+
+  void _confirmLogout(BuildContext context, AuthService auth) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Keluar', style: AppTextStyles.h3),
+        content: const Text('Yakin ingin keluar dari akun?', style: AppTextStyles.body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await auth.logout();
+              Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+            },
+            child: const Text('Keluar', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+
 
 void _showBiometricSheet(BuildContext context, AuthService auth) {
   showModalBottomSheet(
