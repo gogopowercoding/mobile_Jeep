@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:jepora/core/theme/app_theme.dart';
+import 'package:jepora/data/services/auth_service.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -27,6 +30,11 @@ class _LandingScreenState extends State<LandingScreen>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _controller.forward();
+
+    // Re-check biometric saat landing page dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthService>().recheckBiometric();
+    });
   }
 
   @override
@@ -35,9 +43,59 @@ class _LandingScreenState extends State<LandingScreen>
     super.dispose();
   }
 
+  // ── Biometric login — logika sama persis dengan login_screen.dart ─────────
+  Future<void> _biometricLogin() async {
+    final auth = context.read<AuthService>();
+
+    if (!auth.biometricAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Biometrik tidak tersedia. Aktifkan di Profil setelah login.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (!auth.biometricEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Biometrik belum diaktifkan. Login dengan email dulu.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final ok = await auth.loginWithBiometric();
+    if (!mounted) return;
+
+    if (ok) {
+      final role = auth.user?.role;
+      if (role == 'admin') {
+        Navigator.pushReplacementNamed(context, '/admin');
+      } else if (role == 'supir') {
+        Navigator.pushReplacementNamed(context, '/driver');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(auth.error ?? 'Biometrik gagal, coba lagi'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+
+    // Watch biometricAvailable agar tombol fingerprint reactive
+    final auth = context.watch<AuthService>();
 
     return Scaffold(
       body: Stack(
@@ -171,8 +229,9 @@ class _LandingScreenState extends State<LandingScreen>
                             children: [
                               Expanded(
                                 child: ElevatedButton(
-                                  onPressed: () => Navigator.pushReplacementNamed(
-                                      context, '/login'),
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                          context, '/login'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF39E07A),
                                     foregroundColor: Colors.white,
@@ -193,22 +252,26 @@ class _LandingScreenState extends State<LandingScreen>
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              // Biometric button
+
+                              // Tombol biometric — aktif jika tersedia & sudah diaktifkan
                               GestureDetector(
-                                onTap: () {
-                                  // Trigger biometric login langsung dari landing
-                                  // Bisa dihubungkan ke AuthService jika diperlukan
-                                },
+                                onTap: _biometricLogin,
                                 child: Container(
                                   width: 52,
                                   height: 52,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFE6F9F0),
+                                    color: auth.biometricAvailable &&
+                                            auth.biometricEnabled
+                                        ? const Color(0xFFE6F9F0)
+                                        : Colors.white.withOpacity(0.25),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.fingerprint_rounded,
-                                    color: Color(0xFF1B8A4C),
+                                    color: auth.biometricAvailable &&
+                                            auth.biometricEnabled
+                                        ? const Color(0xFF1B8A4C)
+                                        : Colors.white.withOpacity(0.5),
                                     size: 28,
                                   ),
                                 ),
@@ -224,7 +287,8 @@ class _LandingScreenState extends State<LandingScreen>
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontFamily: 'Poppins',
-                                  color: const Color.fromARGB(255, 0, 0, 0).withOpacity(0.85),
+                                  color: const Color(0xFF000000)
+                                      .withOpacity(0.85),
                                 ),
                               ),
                               GestureDetector(
@@ -262,7 +326,6 @@ class _LandingScreenState extends State<LandingScreen>
 class _MountainPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Layer belakang (gelap)
     final back = Paint()..color = const Color(0xFF1B6E3C).withOpacity(0.85);
     final pathBack = Path()
       ..moveTo(0, size.height)
@@ -278,7 +341,6 @@ class _MountainPainter extends CustomPainter {
       ..close();
     canvas.drawPath(pathBack, back);
 
-    // Layer depan (lebih terang)
     final front = Paint()..color = const Color(0xFF2DBF6A).withOpacity(0.65);
     final pathFront = Path()
       ..moveTo(0, size.height)
@@ -294,15 +356,12 @@ class _MountainPainter extends CustomPainter {
       ..close();
     canvas.drawPath(pathFront, front);
 
-    // Padang rumput
     final grass = Paint()..color = const Color(0xFF4CD471).withOpacity(0.5);
     final pathGrass = Path()
       ..moveTo(0, size.height * 0.82)
-      ..quadraticBezierTo(
-          size.width * 0.25, size.height * 0.72,
+      ..quadraticBezierTo(size.width * 0.25, size.height * 0.72,
           size.width * 0.5, size.height * 0.80)
-      ..quadraticBezierTo(
-          size.width * 0.75, size.height * 0.88,
+      ..quadraticBezierTo(size.width * 0.75, size.height * 0.88,
           size.width, size.height * 0.78)
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
