@@ -75,11 +75,13 @@ class AnalyticsSummaryModel {
 
 class ForecastModel {
   final double nextMonthForecast;
+  final double baselineAverage;
   final String trend;
   final double confidence;
 
   ForecastModel({
     required this.nextMonthForecast,
+    required this.baselineAverage,
     required this.trend,
     required this.confidence,
   });
@@ -87,6 +89,7 @@ class ForecastModel {
   factory ForecastModel.fromJson(Map<String, dynamic> json) {
     return ForecastModel(
       nextMonthForecast: double.tryParse(json['forecast']?.toString() ?? '0') ?? 0.0,
+      baselineAverage: double.tryParse(json['baselineAverage']?.toString() ?? '0') ?? 0.0,
       trend: json['trend'] ?? 'stabil',
       confidence: (json['confidence'] ?? 0).toDouble(),
     );

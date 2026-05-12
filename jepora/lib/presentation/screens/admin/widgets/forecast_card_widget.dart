@@ -11,11 +11,26 @@ class ForecastCardWidget extends StatelessWidget {
       .toStringAsFixed(0)
       .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
 
+  Color _getConfidenceColor(double confidence) {
+    if (confidence >= 0.75) return AppColors.statusCompleted;
+    if (confidence >= 0.5) return Colors.orange;
+    return AppColors.error;
+  }
+
+  String _getConfidenceLabel(double confidence) {
+    if (confidence >= 0.75) return 'Tinggi';
+    if (confidence >= 0.5) return 'Sedang';
+    return 'Rendah';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isTrendUp = forecast.trend == 'naik';
     final trendColor = isTrendUp ? AppColors.statusCompleted : AppColors.error;
     final trendIcon = isTrendUp ? Icons.trending_up_rounded : Icons.trending_down_rounded;
+    final confidenceColor = _getConfidenceColor(forecast.confidence);
+    final confidenceLabel = _getConfidenceLabel(forecast.confidence);
+    final hasLowConfidence = forecast.confidence < 0.5;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -27,6 +42,7 @@ class ForecastCardWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // HEADER SECTION
           Row(
             children: [
               Container(
@@ -81,36 +97,79 @@ class ForecastCardWidget extends StatelessWidget {
           const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 16),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          // WARNING SECTION (jika confidence rendah)
+          if (hasLowConfidence) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.error.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
                 children: [
-                  const Text('Estimasi Revenue',
+                  Icon(Icons.warning_rounded,
+                      color: AppColors.error, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Data belum cukup untuk prediksi akurat',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontFamily: 'Poppins',
-                        color: AppColors.textSecondary,
-                      )),
-                  const SizedBox(height: 4),
-                  Text(_formatRupiah(forecast.nextMonthForecast),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      )),
+                        color: AppColors.error,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
                 ],
               ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // FORECAST VALUE & CONFIDENCE SECTION
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Estimasi Revenue',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontFamily: 'Poppins',
+                          color: AppColors.textSecondary,
+                        )),
+                    const SizedBox(height: 4),
+                    Text(_formatRupiah(forecast.nextMonthForecast),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        )),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
+                  color: confidenceColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: confidenceColor.withOpacity(0.3),
+                    width: 1,
+                  ),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const Text('Confidence',
                         style: TextStyle(
@@ -118,13 +177,20 @@ class ForecastCardWidget extends StatelessWidget {
                           fontFamily: 'Poppins',
                           color: AppColors.textSecondary,
                         )),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text('${(forecast.confidence * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: TextStyle(
+                          fontSize: 16,
                           fontFamily: 'Poppins',
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                          color: confidenceColor,
+                        )),
+                    const SizedBox(height: 2),
+                    Text(confidenceLabel,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontFamily: 'Poppins',
+                          color: confidenceColor.withOpacity(0.8),
                         )),
                   ],
                 ),
@@ -134,14 +200,80 @@ class ForecastCardWidget extends StatelessWidget {
 
           const SizedBox(height: 12),
 
+          // CONFIDENCE PROGRESS BAR
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: forecast.confidence,
               minHeight: 6,
               backgroundColor: AppColors.divider,
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(trendColor.withOpacity(0.6)),
+              valueColor: AlwaysStoppedAnimation<Color>(confidenceColor),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // BASELINE AVERAGE SECTION
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Rata-rata Baseline',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontFamily: 'Poppins',
+                          color: AppColors.textSecondary.withOpacity(0.7),
+                        )),
+                    const SizedBox(height: 2),
+                    Text(_formatRupiah(forecast.nextMonthForecast),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        )),
+                  ],
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isTrendUp
+                        ? AppColors.statusCompleted.withOpacity(0.1)
+                        : AppColors.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isTrendUp
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded,
+                        size: 12,
+                        color: trendColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isTrendUp ? 'Meningkat' : 'Menurun',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          color: trendColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
