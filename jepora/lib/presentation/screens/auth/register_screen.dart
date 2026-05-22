@@ -18,7 +18,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _phoneCtrl    = TextEditingController();
-  bool _biometricOpt  = false;
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
@@ -31,7 +30,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
     if (!mounted) return;
     if (ok) {
-      if (_biometricOpt) await auth.toggleBiometric(true);
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,7 +85,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 prefixIcon: Icons.email_outlined,
                 validator: (v) {
                   if (v!.isEmpty) return 'Email wajib diisi';
-                  if (!v.contains('@')) return 'Format email tidak valid';
+                  
+                  // Regex untuk validasi email format
+                  const emailPattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
+                  if (!RegExp(emailPattern).hasMatch(v)) {
+                    return 'Format email tidak valid (contoh: user@gmail.com)';
+                  }
                   return null;
                 },
               ),
@@ -117,39 +120,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.phone,
                 prefixIcon: Icons.phone_outlined,
               ),
-              const SizedBox(height: 16),
-
-              // Biometric option
-              if (auth.biometricAvailable)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.divider, width: 0.5),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.fingerprint_rounded, color: AppColors.primary, size: 24),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Daftarkan biometric', style: AppTextStyles.label),
-                            Text('Login lebih cepat dengan sidik jari', style: AppTextStyles.caption),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: _biometricOpt,
-                        onChanged: (v) => setState(() => _biometricOpt = v),
-                        activeColor: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ),
-
               const SizedBox(height: 28),
 
               PrimaryButton(

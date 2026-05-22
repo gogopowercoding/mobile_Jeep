@@ -44,10 +44,37 @@ class _AdminScreenState extends State<AdminScreen> {
     final notifSvc = context.watch<AdminNotificationService>();
     final unread   = notifSvc.unreadCount;
 
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('JeepOra Admin',
+    return WillPopScope(
+      onWillPop: () async {
+        // Jika tidak di tab pertama, balik ke tab pertama
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+          return false;
+        }
+        // Jika sudah di tab pertama, konfirmasi exit
+        final exit = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Keluar dari JeepOra Admin?'),
+            content: const Text('Apakah Anda ingin keluar dari aplikasi?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Keluar', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+        return exit ?? false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text('JeepOra Admin',
           style: TextStyle(
             fontSize: 18, fontWeight: FontWeight.w700,
             color: AppColors.primary, fontFamily: 'Poppins',
@@ -123,6 +150,7 @@ class _AdminScreenState extends State<AdminScreen> {
           NavItemData(icon: Icons.person_rounded,     label: 'Profil'),
         ],
         onTap: (i) => setState(() => _currentIndex = i),
+      ),
       ),
     );
   }

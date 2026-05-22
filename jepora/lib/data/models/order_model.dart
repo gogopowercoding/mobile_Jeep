@@ -4,7 +4,8 @@ class OrderModel {
   final int packageId;
   final int? driverId;
   final String bookingDate;
-  final double totalPrice;
+  final double originalPrice;  // Harga paket asli
+  final double totalPrice;      // Harga setelah diskon
   final String status;
   final double? latitude;
   final double? longitude;
@@ -18,12 +19,16 @@ class OrderModel {
   final String? paymentStatus;
   final String createdAt;
 
+  // Calculated property: diskon dalam rupiah
+  double get discount => originalPrice - totalPrice;
+
   OrderModel({
     required this.id,
     required this.userId,
     required this.packageId,
     this.driverId,
     required this.bookingDate,
+    required this.originalPrice,
     required this.totalPrice,
     required this.status,
     this.latitude,
@@ -45,6 +50,7 @@ class OrderModel {
         packageId: json['package_id'],
         driverId: json['driver_id'],
         bookingDate: json['booking_date'] ?? '',
+        originalPrice: double.tryParse(json['price']?.toString() ?? '0') ?? 0,
         totalPrice: double.tryParse(json['total_price'].toString()) ?? 0,
         status: json['status'] ?? 'pending',
         latitude: json['latitude'] != null

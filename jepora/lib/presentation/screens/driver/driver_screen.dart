@@ -28,15 +28,43 @@ class _DriverScreenState extends State<DriverScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _tabs,
-      ),
-      bottomNavigationBar: AppBottomNavBar(
-        currentIndex: _currentIndex,
-        items: _navItems,
-        onTap: (i) => setState(() => _currentIndex = i),
+    return WillPopScope(
+      onWillPop: () async {
+        // Jika tidak di tab pertama, balik ke tab pertama
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+          return false;
+        }
+        // Jika sudah di tab pertama, konfirmasi exit
+        final exit = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Keluar dari JeepOra Driver?'),
+            content: const Text('Apakah Anda ingin keluar dari aplikasi?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Keluar', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+        return exit ?? false;
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _tabs,
+        ),
+        bottomNavigationBar: AppBottomNavBar(
+          currentIndex: _currentIndex,
+          items: _navItems,
+          onTap: (i) => setState(() => _currentIndex = i),
+        ),
       ),
     );
   }

@@ -228,16 +228,36 @@ class _HistoryCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      // Harga asli (strikethrough jika ada diskon)
+                      if (order.discount > 0)
+                        Text(
+                          _formatPrice(order.originalPrice),
+                          style: const TextStyle(
+                            fontSize: 11, fontFamily: 'Poppins',
+                            color: AppColors.textSecondary,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      // Harga akhir (tebal dan warna primary)
                       Text(
                         _formatPrice(order.totalPrice),
                         style: const TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w700,
                           fontFamily: 'Poppins',
                           color: AppColors.primary,
-                        )),
-                      const SizedBox(height: 4),
-                      const Icon(Icons.arrow_forward_ios_rounded,
-                          size: 12, color: AppColors.textHint),
+                        ),
+                      ),
+                      // Diskon (jika ada)
+                      if (order.discount > 0) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Diskon: -${_formatPrice(order.discount)}',
+                          style: const TextStyle(
+                            fontSize: 10, fontFamily: 'Poppins',
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

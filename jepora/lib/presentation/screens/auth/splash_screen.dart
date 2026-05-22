@@ -20,37 +20,22 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
-    // ✅ Pakai AuthService — bukan baca SharedPreferences langsung
-    // Ini memastikan auth.init() selesai (biometric + loginTimestamp ter-load)
-    // sebelum kita cek status login
     final auth = context.read<AuthService>();
-
-    // Tunggu init selesai jika belum (AuthService.init() dipanggil di provider)
-    // Beri sedikit jeda agar init() yang async selesai duluan
-    int retry = 0;
-    while (auth.user == null && auth.isLoading == false && retry < 10) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      retry++;
-    }
-
-    if (!mounted) return;
-
-    if (!auth.isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/landing');
-      return;
-    }
-
-    // ✅ Baca role dari AuthService, bukan dari prefs langsung
-    final role = auth.user?.role;
-    switch (role) {
-      case 'admin':
+    
+    // Check if user sudah login (token tersimpan di SharedPreferences)
+    if (auth.isLoggedIn) {
+      // Route ke halaman sesuai role
+      final role = auth.user?.role;
+      if (role == 'admin') {
         Navigator.pushReplacementNamed(context, '/admin');
-        break;
-      case 'supir':
+      } else if (role == 'supir') {
         Navigator.pushReplacementNamed(context, '/driver');
-        break;
-      default:
+      } else {
         Navigator.pushReplacementNamed(context, '/home');
+      }
+    } else {
+      // Belum login → landing page
+      Navigator.pushReplacementNamed(context, '/landing');
     }
   }
 

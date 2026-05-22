@@ -160,7 +160,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _emailCtrl,
                             keyboardType: TextInputType.emailAddress,
                             prefixIcon: Icons.email_outlined,
-                            validator: (v) => v!.isEmpty ? 'Email wajib diisi' : null,
+                            validator: (v) {
+                              if (v!.isEmpty) return 'Email wajib diisi';
+                              
+                              // Regex untuk validasi email format
+                              const emailPattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
+                              if (!RegExp(emailPattern).hasMatch(v)) {
+                                return 'Format email tidak valid (contoh: user@gmail.com)';
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 14),
  
@@ -171,21 +180,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             prefixIcon: Icons.lock_outlined,
                             validator: (v) => v!.isEmpty ? 'Password wajib diisi' : null,
                           ),
-                          const SizedBox(height: 8),
- 
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {},
-                              child: const Text('Lupa Password?',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 13, fontFamily: 'Poppins',
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
+const SizedBox(height: 20),
  
                           // Login button + biometric
                           Row(
@@ -216,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ],
                           ),
- 
+
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,

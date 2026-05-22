@@ -192,6 +192,7 @@ const uploadPaymentProof = async (req, res, next) => {
         SELECT
           o.*,
           p.name   AS package_name,
+          p.price  AS price,
           p.image  AS package_image,
           d.name   AS driver_name,
           d.phone  AS driver_phone,
@@ -255,6 +256,7 @@ const getOrderById = async (req, res, next) => {
       `SELECT
          o.*,
          p.name  AS package_name,
+         p.price AS price,
          p.description AS package_desc,
          p.duration,
          p.image AS package_image,

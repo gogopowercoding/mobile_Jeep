@@ -1300,10 +1300,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
           const SizedBox(height: 16),
 
+          // ── Breakdown Harga ───────────────────────────────
+          _DetailSection(title: 'Detail Harga', items: [
+            _DetailItem(icon: Icons.receipt_outlined, label: 'Harga Paket',    value: _formatPrice(o.originalPrice)),
+            if (o.discount > 0)
+              _DetailItem(icon: Icons.local_offer_rounded, label: 'Diskon', value: '-${_formatPrice(o.discount)}', valueColor: AppColors.error),
+            _DetailItem(icon: Icons.check_circle_rounded, label: 'Total Pembayaran', value: _formatPrice(o.totalPrice), isBold: true),
+          ]),
+
+          const SizedBox(height: 16),
+
           // ── Info ──────────────────────────────────────────
           _DetailSection(title: 'Informasi Booking', items: [
             _DetailItem(icon: Icons.calendar_today_rounded, label: 'Tanggal Booking', value: _formatDate(o.bookingDate)),
-            _DetailItem(icon: Icons.payments_outlined,      label: 'Total Harga',     value: _formatPrice(o.totalPrice)),
             _DetailItem(icon: Icons.credit_card_rounded,    label: 'Status Bayar',    value: _paymentLabel(o.paymentStatus)),
             if (o.notes != null && o.notes!.isNotEmpty)
               _DetailItem(icon: Icons.notes_rounded, label: 'Catatan', value: o.notes!),
@@ -1464,7 +1473,9 @@ class _DetailItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _DetailItem({required this.icon, required this.label, required this.value});
+  final Color? valueColor;
+  final bool isBold;
+  const _DetailItem({required this.icon, required this.label, required this.value, this.valueColor, this.isBold = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1481,7 +1492,11 @@ class _DetailItem extends StatelessWidget {
               children: [
                 Text(label, style: AppTextStyles.caption),
                 const SizedBox(height: 2),
-                Text(value, style: AppTextStyles.label),
+                Text(value, style: TextStyle(
+                  fontSize: 14, fontFamily: 'Poppins',
+                  fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
+                  color: valueColor ?? (isBold ? AppColors.primary : AppColors.textPrimary),
+                )),
               ],
             ),
           ),

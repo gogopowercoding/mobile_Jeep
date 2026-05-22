@@ -95,11 +95,38 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final notifService = context.watch<NotificationService>();
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _tabs,
-      ),
+    return WillPopScope(
+      onWillPop: () async {
+        // Jika tidak di home tab (index 0), balik ke home
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+          return false; // Jangan exit app
+        }
+        // Jika sudah di home, tampilkan dialog konfirmasi exit
+        final exit = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Keluar dari JeepOra?'),
+            content: const Text('Apakah Anda ingin keluar dari aplikasi?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Keluar', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+        return exit ?? false;
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _tabs,
+        ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -150,6 +177,7 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

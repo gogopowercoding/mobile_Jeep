@@ -1,9 +1,12 @@
 class AppConstants {
   // Base URL untuk Web/Chrome
-  static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'http://192.168.171.245:3000/api';
+
+  // Untuk run di chrome static const String baseUrl = 'http://localhost:3000/api';
 
   // Untuk Android Emulator gunakan: http://10.0.2.2:3000/api
-  // Untuk Device fisik: http://192.168.x.x:3000/api
+
+  // Untuk Device fisik: http://192.168.171.245:3000/api
 
   // Storage keys
   static const String tokenKey       = 'auth_token';  

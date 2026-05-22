@@ -43,7 +43,7 @@ class JeepOraApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) {
           final auth = AuthService();
-          auth.init(); // Inisialisasi biometric & token tersimpan
+          auth.init(); // Init biometric & token tersimpan (async, non-blocking)
           return auth;
         }),
         ChangeNotifierProvider(create: (_) => PackageService()),

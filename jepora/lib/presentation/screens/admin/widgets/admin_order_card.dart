@@ -285,8 +285,20 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                                     '${_detail?['duration'] ?? "-"} hari'),
                                 _DetailRow('Tanggal',
                                     widget.order.bookingDate),
-                                _DetailRow('Total Harga',
-                                    'Rp ${_formatRupiah(widget.order.totalPrice)}'),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _SectionCard(
+                              title: 'Detail Harga',
+                              icon: Icons.receipt_outlined,
+                              children: [
+                                _DetailRow('Harga Paket',
+                                    'Rp ${_formatRupiah(widget.order.originalPrice)}'),
+                                if (widget.order.discount > 0)
+                                  _DetailRow('Diskon',
+                                      '-Rp ${_formatRupiah(widget.order.discount)}', isDiscount: true),
+                                _DetailRow('Total Pembayaran',
+                                    'Rp ${_formatRupiah(widget.order.totalPrice)}', isBold: true),
                               ],
                             ),
                             const SizedBox(height: 12),
@@ -502,7 +514,9 @@ class _SectionCard extends StatelessWidget {
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
-  const _DetailRow(this.label, this.value);
+  final bool isBold;
+  final bool isDiscount;
+  const _DetailRow(this.label, this.value, {this.isBold = false, this.isDiscount = false});
 
   @override
   Widget build(BuildContext context) {
@@ -514,9 +528,10 @@ class _DetailRow extends StatelessWidget {
           SizedBox(
             width: 110,
             child: Text(label,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12,
                     fontFamily: 'Poppins',
+                    fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
                     color: AppColors.textSecondary)),
           ),
           const Text(': ',
@@ -526,10 +541,11 @@ class _DetailRow extends StatelessWidget {
                   color: AppColors.textSecondary)),
           Expanded(
             child: Text(value,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12,
                     fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600)),
+                    fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
+                    color: isDiscount ? AppColors.error : (isBold ? AppColors.primary : AppColors.textPrimary))),
           ),
         ],
       ),

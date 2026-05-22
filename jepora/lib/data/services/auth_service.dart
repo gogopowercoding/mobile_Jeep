@@ -75,6 +75,15 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // ─── CLEAR SESSION (untuk development/testing) ────────────
+  Future<void> clearSessionOnStartup() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.tokenKey);
+    await prefs.remove(AppConstants.userKey);
+    _user = null;
+    notifyListeners();
+  }
+
   // ─── REGISTER ────────────────────────────────────────────────
   Future<bool> register({
     required String name,
