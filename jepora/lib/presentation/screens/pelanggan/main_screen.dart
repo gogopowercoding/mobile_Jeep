@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/auth_service.dart';
-import 'package:jepora/data/services/api_services.dart';
 import 'home/home_tab.dart';
 import 'booking/booking_tab.dart';
 import 'games/games_tab.dart';
@@ -93,8 +92,6 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final notifService = context.watch<NotificationService>();
-
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,

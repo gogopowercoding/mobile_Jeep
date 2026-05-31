@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/network/api_client.dart';
 import 'data/services/auth_service.dart';
 import 'data/services/api_services.dart';
-import 'data/services/admin_notification_service.dart';
 import 'data/services/feedback_service.dart';
+import 'data/services/local_notification_service.dart';
+import 'data/local/package_cache_service.dart';
+import 'data/controllers/notification_controller.dart';
 import 'presentation/screens/auth/splash_screen.dart';
 import 'presentation/screens/auth/landing_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
@@ -29,7 +32,14 @@ import 'presentation/screens/pelanggan/booking/location_picker_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id', null);
+  await PackageCacheService.init();
   ApiClient().init();
+  await LocalNotificationService().initialize();
+
+  // GetX khusus fitur notifikasi.
+  // Controller dibuat permanent agar unread badge tetap sinkron antar halaman.
+  Get.put(NotificationController(), permanent: true);
+
   runApp(const JeepOraApp());
 }
 
@@ -47,48 +57,47 @@ class JeepOraApp extends StatelessWidget {
         }),
         ChangeNotifierProvider(create: (_) => PackageService()),
         ChangeNotifierProvider(create: (_) => OrderService()),
-        ChangeNotifierProvider(create: (_) => NotificationService()),
-        ChangeNotifierProvider(create: (_) => AdminNotificationService()),
+        // Notifikasi sudah dipindahkan ke GetX: NotificationController.
         // FIX: FeedbackService didaftarkan agar bisa diakses via context.read
         ChangeNotifierProvider(create: (_) => FeedbackService()),
       ],
-      child: MaterialApp(
+      child: GetMaterialApp(
         title: 'JeepOra',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         initialRoute: '/',
         routes: {
           // ── Auth ─────────────────────────────────────────────
-          '/':                    (_) => const SplashScreen(),
+          '/': (_) => const SplashScreen(),
           '/landing': (context) => const LandingScreen(),
-          '/login':               (_) => const LoginScreen(),
-          '/register':            (_) => const RegisterScreen(),
+          '/login': (_) => const LoginScreen(),
+          '/register': (_) => const RegisterScreen(),
 
           // ── Pelanggan ─────────────────────────────────────────
-          '/home':                (_) => const MainScreen(),
-          '/create-booking':      (_) => const CreateBookingScreen(),
-          '/order-detail':        (_) => const OrderDetailScreen(),
-          '/orders':              (_) => const OrdersHistoryScreen(),
-          '/upload-payment':      (_) => const UploadPaymentScreen(),
-          '/driver-tracking':     (_) => const DriverTrackingScreen(),
+          '/home': (_) => const MainScreen(),
+          '/create-booking': (_) => const CreateBookingScreen(),
+          '/order-detail': (_) => const OrderDetailScreen(),
+          '/orders': (_) => const OrdersHistoryScreen(),
+          '/upload-payment': (_) => const UploadPaymentScreen(),
+          '/driver-tracking': (_) => const DriverTrackingScreen(),
           // FIX: route /packages ditambahkan — dipakai di home_tab.dart baris 230
           // Mengarah ke MainScreen karena packages ada sebagai tab di dalamnya
-          '/packages':            (_) => const MainScreen(),
-          '/package-detail':      (_) => const PackageDetailScreen(),
-          '/timezone':            (_) => const TimeZoneConverterScreen(),
-          '/chatbot':             (_) => const ChatbotScreen(),
-          '/location-picker':     (_) => const LocationPickerScreen(),
+          '/packages': (_) => const MainScreen(),
+          '/package-detail': (_) => const PackageDetailScreen(),
+          '/timezone': (_) => const TimeZoneConverterScreen(),
+          '/chatbot': (_) => const ChatbotScreen(),
+          '/location-picker': (_) => const LocationPickerScreen(),
 
           // ── Admin ─────────────────────────────────────────────
-          '/admin':               (_) => const AdminScreen(),
-          '/admin/package-form':  (_) => const AdminPackageFormScreen(),
+          '/admin': (_) => const AdminScreen(),
+          '/admin/package-form': (_) => const AdminPackageFormScreen(),
 
           // ── Supir ─────────────────────────────────────────────
-          '/driver':              (_) => const DriverScreen(),
+          '/driver': (_) => const DriverScreen(),
 
           // ── Shared ───────────────────────────────────────────
-          '/edit-profile':        (_) => const EditProfileScreen(),
-          '/notifications':       (_) => const NotificationsScreen(),
+          '/edit-profile': (_) => const EditProfileScreen(),
+          '/notifications': (_) => const NotificationsScreen(),
         },
       ),
     );

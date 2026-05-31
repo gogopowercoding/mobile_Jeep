@@ -36,10 +36,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   bool _isReverseGeocoding = false;
   bool _isGettingMyLocation = false;
 
-  // ── State untuk drag pin ───────────────────────────────────────────
-  bool _isDragging = false;
-  LatLng? _dragLatLng;
-
   @override
   void dispose() {
     _mapController.dispose();

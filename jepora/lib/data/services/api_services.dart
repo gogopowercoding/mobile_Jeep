@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/models.dart';
+import '../local/package_cache_service.dart';
 import '../../core/network/api_client.dart';
 
 // ─── PACKAGE SERVICE ─────────────────────────────────────────
@@ -12,7 +13,7 @@ class PackageService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  /// cache schedule per package
+  /// Cache jadwal per paket. Cache runtime ini juga disinkronkan ke Hive.
   final Map<int, List<ScheduleModel>> _scheduleCache = {};
   final Map<int, bool> _scheduleLoading = {};
 
@@ -21,23 +22,54 @@ class PackageService extends ChangeNotifier {
 
   // ─── PACKAGES ─────────────────────────────
   Future<void> fetchPackages({String? search}) async {
-    _isLoading = true;
+    final cachedPackages = PackageCacheService.getPackages(search: search);
+    final hasCachedData = cachedPackages.isNotEmpty;
+
     _error = null;
+    _isLoading = !hasCachedData;
+
+    // Tampilkan cache dulu supaya paket tetap muncul saat internet lambat/offline.
+    if (hasCachedData) {
+      _packages = cachedPackages;
+    }
     notifyListeners();
 
     try {
       final res = await ApiClient().dio.get(
         '/packages',
-        queryParameters: search != null ? {'search': search} : null,
+        queryParameters: search != null && search.trim().isNotEmpty
+            ? {'search': search.trim()}
+            : null,
       );
 
       if (res.data['success'] == true) {
-        _packages = (res.data['data'] as List)
-            .map((e) => PackageModel.fromJson(e))
+        final freshPackages = (res.data['data'] as List)
+            .whereType<Map>()
+            .map((e) => PackageModel.fromJson(Map<String, dynamic>.from(e)))
             .toList();
+
+        _packages = freshPackages;
+
+        // Simpan daftar paket utama ke Hive. Untuk hasil pencarian, cache tetap
+        // tidak ditimpa agar cache offline berisi daftar lengkap terakhir.
+        if (search == null || search.trim().isEmpty) {
+          await PackageCacheService.savePackages(freshPackages);
+        } else {
+          for (final item in freshPackages) {
+            await PackageCacheService.savePackageDetail(item);
+          }
+        }
+      } else {
+        _error = res.data['message']?.toString();
       }
     } catch (e) {
-      _error = extractErrorMessage(e);
+      if (!hasCachedData) {
+        _error = extractErrorMessage(e);
+      } else {
+        // Kalau cache tersedia, aplikasi tetap menampilkan paket offline.
+        _error = null;
+        debugPrint('Menampilkan cache paket wisata dari Hive: $e');
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -45,9 +77,15 @@ class PackageService extends ChangeNotifier {
   }
 
   // ─── SCHEDULE (PER PACKAGE) ───────────────
-  // FIX: endpoint disesuaikan dengan backend /packages/:id/schedules
   Future<List<ScheduleModel>> fetchSchedules(int packageId) async {
-    _scheduleLoading[packageId] = true;
+    final cachedSchedules = PackageCacheService.getSchedules(packageId);
+    final hasCachedSchedules = cachedSchedules.isNotEmpty;
+
+    if (hasCachedSchedules) {
+      _scheduleCache[packageId] = cachedSchedules;
+    }
+
+    _scheduleLoading[packageId] = !hasCachedSchedules;
     notifyListeners();
 
     try {
@@ -57,36 +95,44 @@ class PackageService extends ChangeNotifier {
 
       if (res.data['success'] == true) {
         final data = (res.data['data'] as List)
-            .map((e) => ScheduleModel.fromJson(e))
+            .whereType<Map>()
+            .map((e) => ScheduleModel.fromJson(Map<String, dynamic>.from(e)))
             .toList();
 
         _scheduleCache[packageId] = data;
+        await PackageCacheService.saveSchedules(packageId, data);
         return data;
       }
     } catch (e) {
+      if (hasCachedSchedules) {
+        debugPrint('Menampilkan cache jadwal paket dari Hive: $e');
+        return cachedSchedules;
+      }
       _error = extractErrorMessage(e);
     } finally {
       _scheduleLoading[packageId] = false;
       notifyListeners();
     }
 
-    return [];
+    return hasCachedSchedules ? cachedSchedules : [];
   }
 
   bool isScheduleLoading(int packageId) =>
       _scheduleLoading[packageId] ?? false;
 
   List<ScheduleModel> getSchedules(int packageId) =>
-      _scheduleCache[packageId] ?? [];
+      _scheduleCache[packageId] ?? PackageCacheService.getSchedules(packageId);
 
   // ─── DELETE SCHEDULE ─────────────────────
-  // FIX: endpoint disesuaikan dengan backend /schedules/:id
   Future<void> deleteSchedule(int id, int packageId) async {
     try {
       await ApiClient().dio.delete('/schedules/$id');
 
-      _scheduleCache[packageId]
-          ?.removeWhere((e) => e.id == id);
+      _scheduleCache[packageId]?.removeWhere((e) => e.id == id);
+      await PackageCacheService.saveSchedules(
+        packageId,
+        _scheduleCache[packageId] ?? [],
+      );
 
       notifyListeners();
     } catch (e) {
@@ -95,20 +141,20 @@ class PackageService extends ChangeNotifier {
   }
 
   // ─── CRUD SCHEDULE ───────────────────────
-  // FIX: POST ke /packages/:id/schedules sesuai backend
   Future<bool> createSchedule(int packageId, Map<String, dynamic> data) async {
     try {
       final res = await ApiClient().dio.post(
         '/packages/$packageId/schedules',
         data: data,
       );
-      return res.data['success'] == true;
+      final success = res.data['success'] == true;
+      if (success) await fetchSchedules(packageId);
+      return success;
     } catch (_) {
       return false;
     }
   }
 
-  // FIX: PUT ke /schedules/:id sesuai backend
   Future<bool> updateSchedule(int id, Map<String, dynamic> data) async {
     try {
       final res = await ApiClient().dio.put(
@@ -121,17 +167,33 @@ class PackageService extends ChangeNotifier {
     }
   }
 
-  // optional: detail package
+  // Detail paket dengan fallback cache Hive.
   Future<PackageModel?> fetchPackageById(int id) async {
+    final cachedPackage = PackageCacheService.getPackageDetail(id);
+
     try {
       final res = await ApiClient().dio.get('/packages/$id');
       if (res.data['success'] == true) {
-        return PackageModel.fromJson(res.data['data']);
+        final package = PackageModel.fromJson(
+          Map<String, dynamic>.from(res.data['data'] as Map),
+        );
+        await PackageCacheService.savePackageDetail(package);
+        if (package.schedules != null && package.schedules!.isNotEmpty) {
+          _scheduleCache[id] = package.schedules!;
+          await PackageCacheService.saveSchedules(id, package.schedules!);
+          notifyListeners();
+        }
+        return package;
       }
     } catch (e) {
+      if (cachedPackage != null) {
+        debugPrint('Menampilkan cache detail paket dari Hive: $e');
+        return cachedPackage;
+      }
       _error = extractErrorMessage(e);
     }
-    return null;
+
+    return cachedPackage;
   }
 }
 
@@ -323,9 +385,7 @@ class NotificationService extends ChangeNotifier {
     try {
       await ApiClient().dio.put('/notifications/read-all');
       _notifications = _notifications
-          .map((n) => NotificationModel(
-                id: n.id, title: n.title, message: n.message,
-                isRead: true, createdAt: n.createdAt))
+          .map((n) => n.copyWith(isRead: true))
           .toList();
       notifyListeners();
     } catch (_) {}

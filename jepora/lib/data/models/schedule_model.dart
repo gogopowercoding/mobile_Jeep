@@ -18,13 +18,15 @@ class ScheduleModel {
   });
 
   factory ScheduleModel.fromJson(Map<String, dynamic> json) => ScheduleModel(
-        id: json['id'],
-        dayNumber: json['day_number'] ?? 1,
-        startTime: json['start_time'] ?? '',
-        endTime: json['end_time'],
-        activity: json['activity'] ?? '',
-        isOptional: json['is_optional'] == 1 || json['is_optional'] == true,
-        sortOrder: json['sort_order'] ?? 0,
+        id: int.tryParse(json['id'].toString()) ?? 0,
+        dayNumber: int.tryParse(json['day_number'].toString()) ?? 1,
+        startTime: json['start_time']?.toString() ?? '',
+        endTime: json['end_time']?.toString(),
+        activity: json['activity']?.toString() ?? '',
+        isOptional: json['is_optional'] == 1 ||
+            json['is_optional'] == true ||
+            json['is_optional'].toString() == '1',
+        sortOrder: int.tryParse(json['sort_order'].toString()) ?? 0,
       );
 
   Map<String, dynamic> toJson() => {

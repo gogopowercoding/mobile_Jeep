@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:jepora/core/theme/app_theme.dart';
 import 'package:jepora/data/services/auth_service.dart';
 import 'package:jepora/data/services/api_services.dart';
+import 'package:jepora/data/controllers/notification_controller.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
-import 'package:jepora/core/constants/app_constants.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
@@ -21,7 +22,7 @@ class _HomeTabState extends State<HomeTab> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PackageService>().fetchPackages();
-      context.read<NotificationService>().fetchNotifications();
+      Get.find<NotificationController>().fetchNotifications();
     });
   }
 
@@ -35,7 +36,7 @@ class _HomeTabState extends State<HomeTab> {
   Widget build(BuildContext context) {
     final auth     = context.watch<AuthService>();
     final packages = context.watch<PackageService>();
-    final notifs   = context.watch<NotificationService>();
+    final notifs = Get.find<NotificationController>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -64,35 +65,45 @@ class _HomeTabState extends State<HomeTab> {
                           ],
                         ),
                       ),
-                      // ── Notif icon ───────────────────────────
-                      Stack(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.notifications_outlined,
-                              color: AppColors.textPrimary, size: 26),
-                            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-                          ),
-                          if (notifs.unreadCount > 0)
-                            Positioned(
-                              right: 8, top: 8,
-                              child: Container(
-                                width: 16, height: 16,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.error, shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    notifs.unreadCount > 9 ? '9+' : '${notifs.unreadCount}',
-                                    style: const TextStyle(
-                                      fontSize: 9, color: Colors.white,
-                                      fontWeight: FontWeight.w700,
+                      // ── Notif icon dengan GetX ────────────────
+                      Obx(() {
+                        final unread = notifs.unreadCount;
+                        return Stack(
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.notifications_outlined,
+                                color: AppColors.textPrimary,
+                                size: 26,
+                              ),
+                              onPressed: () => Get.toNamed('/notifications'),
+                            ),
+                            if (unread > 0)
+                              Positioned(
+                                right: 8,
+                                top: 8,
+                                child: Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.error,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      unread > 9 ? '9+' : '$unread',
+                                      style: const TextStyle(
+                                        fontSize: 9,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
-                      ),
+                          ],
+                        );
+                      }),
                     ],
                   ),
                 ),

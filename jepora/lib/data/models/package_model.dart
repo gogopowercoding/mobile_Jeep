@@ -7,8 +7,6 @@ class PackageModel {
   final double price;
   final int duration;
   final String? image;
-
-  // 🔥 Tambahan
   final List<ScheduleModel>? schedules;
 
   PackageModel({
@@ -21,19 +19,30 @@ class PackageModel {
     this.schedules,
   });
 
-  factory PackageModel.fromJson(Map<String, dynamic> json) => PackageModel(
-        id: json['id'],
-        name: json['name'] ?? '',
-        description: json['description'],
-        price: double.tryParse(json['price'].toString()) ?? 0,
-        duration: json['duration'] ?? 0,
-        image: json['image'],
+  factory PackageModel.fromJson(Map<String, dynamic> json) {
+    return PackageModel(
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString(),
+      price: double.tryParse(json['price'].toString()) ?? 0,
+      duration: int.tryParse(json['duration'].toString()) ?? 0,
+      image: json['image']?.toString(),
+      schedules: json['schedules'] != null && json['schedules'] is List
+          ? (json['schedules'] as List)
+              .whereType<Map>()
+              .map((e) => ScheduleModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : [],
+    );
+  }
 
-        // 🔥 Parsing schedules
-        schedules: json['schedules'] != null
-            ? (json['schedules'] as List)
-                .map((e) => ScheduleModel.fromJson(e))
-                .toList()
-            : [],
-      );
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'description': description,
+        'price': price,
+        'duration': duration,
+        'image': image,
+        'schedules': schedules?.map((e) => e.toJson()).toList() ?? [],
+      };
 }

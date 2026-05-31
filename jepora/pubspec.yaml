@@ -25,6 +25,10 @@ dependencies:
   shared_preferences: ^2.2.3
   flutter_secure_storage: ^9.0.0
 
+  #dbhive
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
   # Biometric
   local_auth: ^2.2.0
 
@@ -37,6 +41,10 @@ dependencies:
   shimmer: ^3.0.0
   fluttertoast: ^8.2.5
   lottie: ^3.1.2
+
+  # Notifications
+  flutter_local_notifications: ^19.0.0
+  timezone: ^0.10.0
 
   # Maps (OpenStreetMap - gratis)
   flutter_map: ^6.1.0
@@ -58,6 +66,9 @@ dependencies:
   # Icons
   cupertino_icons: ^1.0.6
 
+  #getx
+  get: ^4.6.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -74,3 +85,6 @@ flutter:
   - family: TacOne
     fonts:
       - asset: assets/fonts/TacOne-Regular.ttf
+
+
+ 
