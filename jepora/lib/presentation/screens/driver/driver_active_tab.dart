@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../data/services/auth_service.dart';
@@ -369,58 +371,307 @@ class _InfoRow extends StatelessWidget {
 }
 
 // ─── CUSTOMER LOCATION MAP SCREEN ────────────────────────────
-class CustomerLocationMapScreen extends StatelessWidget {
+class CustomerLocationMapScreen extends StatefulWidget {
   final OrderModel order;
 
   const CustomerLocationMapScreen({super.key, required this.order});
 
   @override
+  State<CustomerLocationMapScreen> createState() => _CustomerLocationMapScreenState();
+}
+
+class _CustomerLocationMapScreenState extends State<CustomerLocationMapScreen> {
+  final MapController _mapController = MapController();
+  StreamSubscription<MagnetometerEvent>? _magnetometerSubscription;
+  Position? _driverPosition;
+  double? _headingDegrees;
+  double? _bearingToCustomer;
+  double? _distanceToCustomer;
+  bool _isLoadingLocation = true;
+
+  double get _customerLat => widget.order.latitude!;
+  double get _customerLng => widget.order.longitude!;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCompassSensor();
+    _loadDriverLocation();
+  }
+
+  @override
+  void dispose() {
+    _magnetometerSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _startCompassSensor() {
+    _magnetometerSubscription = magnetometerEventStream().listen((event) {
+      // Sensor kedua: magnetometer/compass. Heading dihitung dari medan magnet
+      // pada sumbu X dan Y agar ikon kompas dapat berputar mengikuti arah HP.
+      final heading = (math.atan2(event.y, event.x) * 180 / math.pi + 360) % 360;
+      if (mounted) {
+        setState(() => _headingDegrees = heading.toDouble());
+      }
+    });
+  }
+
+  Future<void> _loadDriverLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (mounted) setState(() => _isLoadingLocation = false);
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final bearing = _calculateBearing(
+        position.latitude,
+        position.longitude,
+        _customerLat,
+        _customerLng,
+      );
+      final distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        _customerLat,
+        _customerLng,
+      );
+
+      if (mounted) {
+        setState(() {
+          _driverPosition = position;
+          _bearingToCustomer = bearing;
+          _distanceToCustomer = distance;
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  double _degreeToRadian(double degree) => degree * math.pi / 180;
+
+  double _calculateBearing(
+    double startLat,
+    double startLng,
+    double endLat,
+    double endLng,
+  ) {
+    final lat1 = _degreeToRadian(startLat);
+    final lat2 = _degreeToRadian(endLat);
+    final deltaLng = _degreeToRadian(endLng - startLng);
+
+    final y = math.sin(deltaLng) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(deltaLng);
+
+    return (math.atan2(y, x) * 180 / math.pi + 360) % 360;
+  }
+
+  String _directionLabel(double degree) {
+    const labels = ['Utara', 'Timur Laut', 'Timur', 'Tenggara', 'Selatan', 'Barat Daya', 'Barat', 'Barat Laut'];
+    final index = ((degree + 22.5) / 45).floor() % 8;
+    return labels[index];
+  }
+
+  String _formatDistance(double meters) {
+    if (meters < 1000) return '${meters.toStringAsFixed(0)} m';
+    return '${(meters / 1000).toStringAsFixed(2)} km';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final lat = order.latitude!;
-    final lng = order.longitude!;
+    final driverPoint = _driverPosition == null
+        ? null
+        : LatLng(_driverPosition!.latitude, _driverPosition!.longitude);
+    final customerPoint = LatLng(_customerLat, _customerLng);
+    final initialCenter = driverPoint ?? customerPoint;
+
+    final heading = _headingDegrees ?? 0;
+    final bearing = _bearingToCustomer ?? 0;
+    final relativeDirection = ((bearing - heading) + 360) % 360;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Lokasi Pelanggan — Order #${order.id}'),
+        title: Text('Lokasi Pelanggan — Order #${widget.order.id}'),
       ),
-      body: FlutterMap(
-        options: MapOptions(
-          initialCenter: LatLng(lat, lng),
-          initialZoom: 15,
-        ),
+      body: Stack(
         children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.jeepora.app',
-          ),
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: LatLng(lat, lng),
-                width: 70,
-                height: 70,
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.person_pin_rounded,
-                          color: Colors.white, size: 26),
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: initialCenter,
+              initialZoom: 15,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.jeepora.app',
+              ),
+              if (driverPoint != null)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: [driverPoint, customerPoint],
+                      strokeWidth: 4,
+                      color: AppColors.primary,
                     ),
-                    const Text('Pelanggan',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primaryDark,
-                          fontFamily: 'Poppins',
-                        )),
                   ],
                 ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: customerPoint,
+                    width: 78,
+                    height: 78,
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.person_pin_rounded,
+                              color: Colors.white, size: 26),
+                        ),
+                        const Text('Pelanggan',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryDark,
+                              fontFamily: 'Poppins',
+                            )),
+                      ],
+                    ),
+                  ),
+                  if (driverPoint != null)
+                    Marker(
+                      point: driverPoint,
+                      width: 78,
+                      height: 78,
+                      child: Column(
+                        children: [
+                          Transform.rotate(
+                            angle: _degreeToRadian(heading),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: const BoxDecoration(
+                                color: AppColors.info,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.navigation_rounded,
+                                  color: Colors.white, size: 24),
+                            ),
+                          ),
+                          const Text('Sopir',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.info,
+                                fontFamily: 'Poppins',
+                              )),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ],
+          ),
+
+          // Panel kompas arah jemput pelanggan.
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.divider, width: 0.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.10),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.primary, width: 1.2),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        const Positioned(
+                          top: 5,
+                          child: Text('N',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primaryDark,
+                                fontFamily: 'Poppins',
+                              )),
+                        ),
+                        Transform.rotate(
+                          angle: _degreeToRadian(relativeDirection),
+                          child: const Icon(Icons.navigation_rounded,
+                              color: AppColors.primaryDark, size: 34),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Kompas Arah Jemput', style: AppTextStyles.label),
+                        const SizedBox(height: 4),
+                        Text(
+                          _isLoadingLocation
+                              ? 'Mengambil lokasi sopir...'
+                              : 'Arahkan kendaraan ke ${_directionLabel(bearing)}',
+                          style: AppTextStyles.body,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _distanceToCustomer == null
+                              ? 'Heading HP: ${heading.toStringAsFixed(0)}°'
+                              : 'Jarak pelanggan ± ${_formatDistance(_distanceToCustomer!)} • Heading ${heading.toStringAsFixed(0)}°',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Refresh lokasi sopir',
+                    onPressed: _loadDriverLocation,
+                    icon: const Icon(Icons.my_location_rounded,
+                        color: AppColors.primaryDark),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
