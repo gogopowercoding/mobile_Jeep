@@ -86,15 +86,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
  
-          // Ilustrasi pegunungan (SVG/placeholder)
-          Positioned(
-            bottom: MediaQuery.of(context).size.height * 0.56,
-            left: 0, right: 0,
-            child: CustomPaint(
-              size: Size(MediaQuery.of(context).size.width, 80),
-              painter: _MountainPainter(),
-            ),
-          ),
  
           SafeArea(
             child: SingleChildScrollView(
@@ -160,7 +151,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _emailCtrl,
                             keyboardType: TextInputType.emailAddress,
                             prefixIcon: Icons.email_outlined,
+                            fillColor: const Color.fromARGB(255, 255, 252, 252),
                             validator: (v) => v!.isEmpty ? 'Email wajib diisi' : null,
+                  
                           ),
                           const SizedBox(height: 14),
  
@@ -169,25 +162,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             controller: _passwordCtrl,
                             isPassword: true,
                             prefixIcon: Icons.lock_outlined,
+                            fillColor: const Color.fromARGB(255, 255, 254, 255),
                             validator: (v) => v!.isEmpty ? 'Password wajib diisi' : null,
                           ),
                           const SizedBox(height: 8),
  
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {},
-                              child: const Text('Lupa Password?',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 13, fontFamily: 'Poppins',
-                                ),
-                              ),
-                            ),
-                          ),
                           const SizedBox(height: 8),
  
-                          // Login button + biometric
+                          // Login button + biometric di theme/app_theme.dart
                           Row(
                             children: [
                               Expanded(
@@ -252,21 +234,3 @@ class _LoginScreenState extends State<LoginScreen> {
 }
  
 // Painter untuk ilustrasi pegunungan sederhana
-class _MountainPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF2DBF6A).withOpacity(0.5);
-    final path = Path()
-      ..moveTo(0, size.height)
-      ..lineTo(size.width * 0.2, size.height * 0.1)
-      ..lineTo(size.width * 0.4, size.height * 0.6)
-      ..lineTo(size.width * 0.6, size.height * 0.0)
-      ..lineTo(size.width * 0.8, size.height * 0.5)
-      ..lineTo(size.width, size.height * 0.2)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-  @override
-  bool shouldRepaint(_) => false;
-}

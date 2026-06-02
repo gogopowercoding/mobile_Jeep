@@ -55,6 +55,10 @@ class AppTextField extends StatefulWidget {
   final bool readOnly;
   final VoidCallback? onTap;
 
+  // Tambahan warna custom
+  final Color? fillColor;
+  final Color? iconColor;
+
   const AppTextField({
     super.key,
     required this.hint,
@@ -66,6 +70,10 @@ class AppTextField extends StatefulWidget {
     this.maxLines = 1,
     this.readOnly = false,
     this.onTap,
+
+    // Tambahan
+    this.fillColor,
+    this.iconColor,
   });
 
   @override
@@ -88,14 +96,26 @@ class _AppTextFieldState extends State<AppTextField> {
       style: AppTextStyles.body,
       decoration: InputDecoration(
         hintText: widget.hint,
+
+        filled: true,
+        fillColor: widget.fillColor ?? const Color(0xFFF1FFF6),
+
         prefixIcon: widget.prefixIcon != null
-            ? Icon(widget.prefixIcon, color: AppColors.textHint, size: 20)
+            ? Icon(
+                widget.prefixIcon,
+                color: widget.iconColor ?? AppColors.textHint,
+                size: 20,
+              )
             : null,
+
         suffixIcon: widget.isPassword
             ? IconButton(
                 icon: Icon(
-                  _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  color: AppColors.textHint, size: 20,
+                  _obscure
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: widget.iconColor ?? AppColors.textHint,
+                  size: 20,
                 ),
                 onPressed: () => setState(() => _obscure = !_obscure),
               )

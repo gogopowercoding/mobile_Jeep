@@ -19,19 +19,26 @@ class _LandingScreenState extends State<LandingScreen>
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 700),
     );
-    _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+
+    _fadeIn = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+
     _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.3),
+      begin: const Offset(0, 0.15),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
 
     _controller.forward();
 
-    // Re-check biometric saat landing page dibuka
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AuthService>().recheckBiometric();
     });
@@ -43,7 +50,6 @@ class _LandingScreenState extends State<LandingScreen>
     super.dispose();
   }
 
-  // ── Biometric login — logika sama persis dengan login_screen.dart ─────────
   Future<void> _biometricLogin() async {
     final auth = context.read<AuthService>();
 
@@ -51,7 +57,8 @@ class _LandingScreenState extends State<LandingScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Biometrik tidak tersedia. Aktifkan di Profil setelah login.'),
+            'Biometrik tidak tersedia. Aktifkan di Profil setelah login.',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -73,6 +80,7 @@ class _LandingScreenState extends State<LandingScreen>
 
     if (ok) {
       final role = auth.user?.role;
+
       if (role == 'admin') {
         Navigator.pushReplacementNamed(context, '/admin');
       } else if (role == 'supir') {
@@ -92,420 +100,147 @@ class _LandingScreenState extends State<LandingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
-    // Watch biometricAvailable agar tombol fingerprint reactive
     final auth = context.watch<AuthService>();
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // ── Background gradient hijau ──
-          Container(
-            height: size.height * 0.62,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF1B8A4C), Color(0xFF39E07A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
+      backgroundColor: const Color(0xFFF7FFF9),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: FadeTransition(
+            opacity: _fadeIn,
+            child: SlideTransition(
+              position: _slideUp,
+              child: Column(
+                children: [
+                  const Spacer(),
 
-          // ── Langit biru di bagian atas ──
-          Positioned(
-            top: 0, left: 0, right: 0,
-            height: size.height * 0.30,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF6EC6F0), Color(0xFFAEE4FA)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ),
+                  // Gambar utama dari assets/images
+                  Image.asset(
+                    'assets/icons/JeepOra logo.png',
+                    width: 170,
+                    height: 170,
+                    fit: BoxFit.contain,
+                  ),
 
-          // ── Awan ──
-          Positioned(
-            top: size.height * 0.06,
-            left: size.width * 0.08,
-            child: const _Cloud(width: 80, height: 28),
-          ),
-          Positioned(
-            top: size.height * 0.09,
-            right: size.width * 0.12,
-            child: const _Cloud(width: 56, height: 20),
-          ),
+                  const SizedBox(height: 24),
 
-          // ── Burung ──
-          Positioned(
-            top: size.height * 0.13,
-            left: size.width * 0.55,
-            child: const _Bird(),
-          ),
+                  const Text(
+                    'JeepOra',
+                    style: TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1B8A4C),
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
 
-          // ── Ilustrasi pegunungan ──
-          Positioned(
-            top: size.height * 0.20,
-            left: 0, right: 0,
-            height: size.height * 0.42,
-            child: CustomPaint(
-              painter: _MountainPainter(),
-            ),
-          ),
+                  const SizedBox(height: 8),
 
-          // ── Dekorasi bunga & semak ──
-          Positioned(
-            bottom: size.height * 0.36,
-            right: size.width * 0.08,
-            child: const _Flower(),
-          ),
-          Positioned(
-            bottom: size.height * 0.37,
-            left: size.width * 0.04,
-            child: const _SmallBush(),
-          ),
+                  Text(
+                    'Pesan Jeep Wisata Dieng dengan mudah dan cepat',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: Colors.black.withOpacity(0.65),
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
 
-          // ── Konten utama ──
-          SafeArea(
-            child: Column(
-              children: [
-                // Logo & tagline
-                Padding(
-                  padding: const EdgeInsets.only(top: 28),
-                  child: FadeTransition(
-                    opacity: _fadeIn,
-                    child: SlideTransition(
-                      position: _slideUp,
-                      child: Column(
-                        children: [
-                          const Text(
-                            'JeepOra',
-                            style: TextStyle(
-                              fontSize: 36,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              fontFamily: 'TacOne',
-                              letterSpacing: 1.5,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black26,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 3),
-                                ),
-                              ],
+                  const Spacer(),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pushReplacementNamed(context, '/login');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF39E07A),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(54),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Pesan Jeep Wisata Dieng, JeepOra solusinya',
+                          child: const Text(
+                            'Login',
                             style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.white.withOpacity(0.90),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
                               fontFamily: 'Poppins',
                             ),
-                            textAlign: TextAlign.center,
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                ),
 
-                const Spacer(),
+                      const SizedBox(width: 12),
 
-                // Tombol bawah
-                FadeTransition(
-                  opacity: _fadeIn,
-                  child: SlideTransition(
-                    position: _slideUp,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 36),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () =>
-                                      Navigator.pushReplacementNamed(
-                                          context, '/login'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF39E07A),
-                                    foregroundColor: Colors.white,
-                                    minimumSize: const Size.fromHeight(52),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(26),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: const Text(
-                                    'Login',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      fontFamily: 'Poppins',
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-
-                              // Tombol biometric — aktif jika tersedia & sudah diaktifkan
-                              GestureDetector(
-                                onTap: _biometricLogin,
-                                child: Container(
-                                  width: 52,
-                                  height: 52,
-                                  decoration: BoxDecoration(
-                                    color: auth.biometricAvailable &&
-                                            auth.biometricEnabled
-                                        ? const Color(0xFFE6F9F0)
-                                        : Colors.white.withOpacity(0.25),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Icon(
-                                    Icons.fingerprint_rounded,
-                                    color: auth.biometricAvailable &&
-                                            auth.biometricEnabled
-                                        ? const Color(0xFF1B8A4C)
-                                        : Colors.white.withOpacity(0.5),
-                                    size: 28,
-                                  ),
-                                ),
-                              ),
-                            ],
+                      GestureDetector(
+                        onTap: _biometricLogin,
+                        child: Container(
+                          width: 54,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            color: auth.biometricAvailable &&
+                                    auth.biometricEnabled
+                                ? const Color(0xFFE6F9F0)
+                                : Colors.grey.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(18),
                           ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Belum punya akun? ',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontFamily: 'Poppins',
-                                  color: const Color(0xFF000000)
-                                      .withOpacity(0.85),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () =>
-                                    Navigator.pushNamed(context, '/register'),
-                                child: const Text(
-                                  'Daftar Sekarang',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontFamily: 'Poppins',
-                                    color: Color.fromARGB(255, 96, 56, 226),
-                                    fontWeight: FontWeight.w700,
-                                    decoration: TextDecoration.underline,
-                                    decorationColor: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          child: Icon(
+                            Icons.fingerprint_rounded,
+                            color: auth.biometricAvailable &&
+                                    auth.biometricEnabled
+                                ? const Color(0xFF1B8A4C)
+                                : Colors.grey,
+                            size: 30,
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 18),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Belum punya akun? ',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontFamily: 'Poppins',
+                          color: Colors.black.withOpacity(0.65),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushNamed(context, '/register');
+                        },
+                        child: const Text(
+                          'Daftar Sekarang',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontFamily: 'Poppins',
+                            color: Color(0xFF1B8A4C),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 34),
+                ],
+              ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Painter pegunungan berlapis ──────────────────────────────────────────────
-class _MountainPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final back = Paint()..color = const Color(0xFF1B6E3C).withOpacity(0.85);
-    final pathBack = Path()
-      ..moveTo(0, size.height)
-      ..lineTo(size.width * 0.13, size.height * 0.38)
-      ..lineTo(size.width * 0.25, size.height * 0.62)
-      ..lineTo(size.width * 0.38, size.height * 0.15)
-      ..lineTo(size.width * 0.52, size.height * 0.50)
-      ..lineTo(size.width * 0.67, size.height * 0.05)
-      ..lineTo(size.width * 0.80, size.height * 0.42)
-      ..lineTo(size.width * 0.93, size.height * 0.22)
-      ..lineTo(size.width, size.height * 0.32)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(pathBack, back);
-
-    final front = Paint()..color = const Color(0xFF2DBF6A).withOpacity(0.65);
-    final pathFront = Path()
-      ..moveTo(0, size.height)
-      ..lineTo(size.width * 0.08, size.height * 0.55)
-      ..lineTo(size.width * 0.20, size.height * 0.75)
-      ..lineTo(size.width * 0.33, size.height * 0.30)
-      ..lineTo(size.width * 0.46, size.height * 0.60)
-      ..lineTo(size.width * 0.59, size.height * 0.18)
-      ..lineTo(size.width * 0.72, size.height * 0.52)
-      ..lineTo(size.width * 0.85, size.height * 0.34)
-      ..lineTo(size.width, size.height * 0.48)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(pathFront, front);
-
-    final grass = Paint()..color = const Color(0xFF4CD471).withOpacity(0.5);
-    final pathGrass = Path()
-      ..moveTo(0, size.height * 0.82)
-      ..quadraticBezierTo(size.width * 0.25, size.height * 0.72,
-          size.width * 0.5, size.height * 0.80)
-      ..quadraticBezierTo(size.width * 0.75, size.height * 0.88,
-          size.width, size.height * 0.78)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(pathGrass, grass);
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
-// ── Widget awan ──────────────────────────────────────────────────────────────
-class _Cloud extends StatelessWidget {
-  final double width;
-  final double height;
-  const _Cloud({required this.width, required this.height});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      height: height,
-      child: CustomPaint(painter: _CloudPainter()),
-    );
-  }
-}
-
-class _CloudPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = Colors.white.withOpacity(0.88);
-    canvas.drawCircle(
-        Offset(size.width * 0.25, size.height * 0.6), size.height * 0.45, p);
-    canvas.drawCircle(
-        Offset(size.width * 0.50, size.height * 0.38), size.height * 0.55, p);
-    canvas.drawCircle(
-        Offset(size.width * 0.75, size.height * 0.55), size.height * 0.42, p);
-    canvas.drawRect(
-      Rect.fromLTRB(size.width * 0.15, size.height * 0.55,
-          size.width * 0.85, size.height),
-      p,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
-// ── Widget burung ────────────────────────────────────────────────────────────
-class _Bird extends StatelessWidget {
-  const _Bird();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 28,
-      height: 14,
-      child: CustomPaint(painter: _BirdPainter()),
-    );
-  }
-}
-
-class _BirdPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = const Color(0xFF334455)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-
-    final left = Path()
-      ..moveTo(size.width * 0.5, size.height * 0.5)
-      ..quadraticBezierTo(size.width * 0.25, 0, 0, size.height * 0.35);
-    canvas.drawPath(left, p);
-
-    final right = Path()
-      ..moveTo(size.width * 0.5, size.height * 0.5)
-      ..quadraticBezierTo(
-          size.width * 0.75, 0, size.width, size.height * 0.35);
-    canvas.drawPath(right, p);
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
-// ── Widget bunga ─────────────────────────────────────────────────────────────
-class _Flower extends StatelessWidget {
-  const _Flower();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _petal(Colors.white),
-            const SizedBox(width: 2),
-            _petal(const Color(0xFFFFC0CB)),
-          ],
         ),
-        Container(width: 2, height: 14, color: const Color(0xFF2DBF6A)),
-      ],
-    );
-  }
-
-  Widget _petal(Color color) => Container(
-        width: 10,
-        height: 10,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
-}
-
-// ── Widget semak kecil ────────────────────────────────────────────────────────
-class _SmallBush extends StatelessWidget {
-  const _SmallBush();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-                color: const Color(0xFF3AD46A), shape: BoxShape.circle)),
-        const SizedBox(width: 2),
-        Container(
-            width: 16,
-            height: 16,
-            decoration: BoxDecoration(
-                color: const Color(0xFF2DBF6A), shape: BoxShape.circle)),
-        const SizedBox(width: 2),
-        Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-                color: const Color(0xFF3AD46A), shape: BoxShape.circle)),
-      ],
+      ),
     );
   }
 }

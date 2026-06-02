@@ -99,6 +99,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          //navigation warna
           color: AppColors.surface,
           boxShadow: [
             BoxShadow(
