@@ -124,6 +124,7 @@ class _FeedbackTabState extends State<FeedbackTab> {
               hint: 'Tulis pengalaman, saran, atau kritikmu di sini...',
               controller: _messageCtrl,
               maxLines: 5,
+              fillColor: Colors.white,
             ),
 
             const SizedBox(height: 24),

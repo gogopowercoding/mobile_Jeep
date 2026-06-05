@@ -428,6 +428,7 @@ class _AiPackageRecommendationSection extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: selected ? AppColors.textOnPrimary : AppColors.textPrimary,
                   ),
+                  //warna pilihan minat
                   selectedColor: AppColors.primary,
                   backgroundColor: const Color(0xFFE8F5EE),
                   side: BorderSide(
@@ -575,6 +576,7 @@ class _RecommendationCard extends StatelessWidget {
         width: 240,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
+          //warna card rekomendasi
           color: const Color(0xFFE8F5EE),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFB7DFCB)),
@@ -604,6 +606,7 @@ class _RecommendationCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
+                          //warna persenan
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(20),
                         ),

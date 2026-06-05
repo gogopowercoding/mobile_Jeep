@@ -24,14 +24,44 @@ class AuthService extends ChangeNotifier {
   bool get isAdmin => _user?.role == 'admin';
   bool get isDriver => _user?.role == 'supir';
   bool get isCustomer => _user?.role == 'pelanggan';
+  bool _hasSavedSession = false;
+  bool _initialized = false;
+
+  bool get hasSavedSession => _hasSavedSession;
+  bool get initialized => _initialized;
+
+  bool get needsBiometricUnlock {
+    return _hasSavedSession && _biometricEnabled && _user == null;
+  }
 
   final _localAuth = LocalAuthentication();
 
   // Init: cek token tersimpan & status biometric
   Future<void> init() async {
-    await _checkBiometric();
-    await _loadSavedUser();
+  await _checkBiometric();
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString(AppConstants.tokenKey);
+  final userJson = prefs.getString(AppConstants.userKey);
+
+  _hasSavedSession = token != null && userJson != null;
+
+  if (_hasSavedSession) {
+    if (_biometricEnabled && _biometricAvailable) {
+      // Ada token, tapi biometric aktif.
+      // Jangan langsung login otomatis.
+      _user = null;
+    } else {
+      // Biometric tidak aktif, boleh auto-login.
+      await _loadSavedUser();
+    }
+  } else {
+    _user = null;
   }
+
+  _initialized = true;
+  notifyListeners();
+}
 
   Future<void> _checkBiometric() async {
     try {

@@ -194,6 +194,7 @@ class _MenuSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(title, style: AppTextStyles.caption),
         ),
+        //editprofil background
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
@@ -234,35 +235,47 @@ class _MenuItem extends StatelessWidget {
   });
 
   
-
+//menuSection
   @override
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
       leading: Container(
-        width: 36, height: 36,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
           color: isDestructive
-              ? AppColors.error.withOpacity(0.1)
-              : AppColors.primaryLight,
+              ? const Color(0xFFFFEAEA)
+              : const Color(0xFFEAF7FF), // warna kotak icon
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon,
+        child: Icon(
+          icon,
           size: 18,
-          color: isDestructive ? AppColors.error : AppColors.primary,
+          color: isDestructive
+              ? const Color(0xFFE53935)
+              : const Color(0xFF2196F3), // warna icon
         ),
       ),
-      title: Text(label,
+      title: Text(
+        label,
         style: TextStyle(
-          fontSize: 14, fontFamily: 'Poppins', fontWeight: FontWeight.w500,
-          color: isDestructive ? AppColors.error : AppColors.textPrimary,
+          fontSize: 14,
+          fontFamily: 'Poppins',
+          fontWeight: FontWeight.w500,
+          color: isDestructive
+              ? const Color(0xFFE53935)
+              : const Color(0xFF333333), // warna teks
         ),
       ),
-      trailing: trailing ?? (onTap != null
-          ? const Icon(Icons.chevron_right_rounded, color: AppColors.textHint, size: 20)
-          : null),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      trailing: trailing ??
+          (onTap != null
+              ? const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFFB0B0B0), // warna panah kanan
+                  size: 20,
+                )
+              : null),
     );
   }
 }
