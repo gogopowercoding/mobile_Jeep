@@ -401,12 +401,8 @@ class _AiPackageRecommendationSection extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Rekomendasi AI/ML', style: AppTextStyles.h3),
+                      Text('Rekomendasi Wisata', style: AppTextStyles.h3),
                       SizedBox(height: 2),
-                      Text(
-                        'Content-Based Filtering dari minat, budget, dan durasi',
-                        style: AppTextStyles.caption,
-                      ),
                     ],
                   ),
                 ),
