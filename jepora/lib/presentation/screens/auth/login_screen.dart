@@ -173,18 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 8),
  
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {},
-                              child: const Text('Lupa Password?',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 13, fontFamily: 'Poppins',
-                                ),
-                              ),
-                            ),
-                          ),
+                        
                           const SizedBox(height: 8),
  
                           // Login button + biometric
