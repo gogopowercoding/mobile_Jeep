@@ -411,7 +411,3 @@ class CurrencyService {
   }
 }
 
-// ─── CATATAN: FeedbackService dihapus dari file ini ──────────
-// Gunakan FeedbackService dari:
-// lib/data/services/feedback_service.dart
-// (versi lengkap dengan ChangeNotifier dan full CRUD)

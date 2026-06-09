@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:dio/dio.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
@@ -386,7 +387,15 @@ class _CustomerLocationMapScreenState extends State<CustomerLocationMapScreen> {
   Position? _driverPosition;
   double? _headingDegrees;
   double? _bearingToCustomer;
-  double? _distanceToCustomer;
+  double? _distanceToCustomer; // jarak garis lurus untuk fallback
+
+  // Route jalan real dari OSRM (mengikuti jalan, bukan garis lurus).
+  List<LatLng> _routePoints = [];
+  double? _routeDistanceMeters;
+  double? _routeDurationSeconds;
+  bool _isLoadingRoute = false;
+  String? _routeError;
+
   bool _isLoadingLocation = true;
 
   double get _customerLat => widget.order.latitude!;
@@ -454,8 +463,79 @@ class _CustomerLocationMapScreenState extends State<CustomerLocationMapScreen> {
           _isLoadingLocation = false;
         });
       }
+
+      // Setelah posisi sopir didapat, ambil rute jalan real dari OSRM.
+      await _loadRoadRoute(
+        LatLng(position.latitude, position.longitude),
+        LatLng(_customerLat, _customerLng),
+      );
     } catch (_) {
       if (mounted) setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  Future<void> _loadRoadRoute(LatLng driverPoint, LatLng customerPoint) async {
+    if (mounted) {
+      setState(() {
+        _isLoadingRoute = true;
+        _routeError = null;
+      });
+    }
+
+    try {
+      // OSRM memakai format longitude,latitude.
+      final coordinates =
+          '${driverPoint.longitude},${driverPoint.latitude};'
+          '${customerPoint.longitude},${customerPoint.latitude}';
+
+      final response = await Dio().get(
+        'https://router.project-osrm.org/route/v1/driving/$coordinates',
+        queryParameters: {
+          'overview': 'full',
+          'geometries': 'geojson',
+          'steps': 'false',
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 12),
+          sendTimeout: const Duration(seconds: 12),
+        ),
+      );
+
+      final routes = response.data['routes'] as List?;
+      if (routes == null || routes.isEmpty) {
+        throw Exception('Rute tidak ditemukan');
+      }
+
+      final route = routes.first as Map<String, dynamic>;
+      final geometry = route['geometry'] as Map<String, dynamic>;
+      final coords = geometry['coordinates'] as List;
+
+      final points = coords.map((c) {
+        final item = c as List;
+        final lng = (item[0] as num).toDouble();
+        final lat = (item[1] as num).toDouble();
+        return LatLng(lat, lng);
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _routePoints = points;
+          _routeDistanceMeters = (route['distance'] as num?)?.toDouble();
+          _routeDurationSeconds = (route['duration'] as num?)?.toDouble();
+          _isLoadingRoute = false;
+        });
+      }
+    } catch (_) {
+      // Jika routing API gagal, aplikasi tetap menampilkan fallback garis lurus.
+      if (mounted) {
+        setState(() {
+          _routePoints = [driverPoint, customerPoint];
+          _routeDistanceMeters = null;
+          _routeDurationSeconds = null;
+          _routeError = 'Rute jalan gagal dimuat, memakai garis lurus sementara.';
+          _isLoadingRoute = false;
+        });
+      }
     }
   }
 
@@ -489,6 +569,14 @@ class _CustomerLocationMapScreenState extends State<CustomerLocationMapScreen> {
     return '${(meters / 1000).toStringAsFixed(2)} km';
   }
 
+  String _formatDuration(double seconds) {
+    final minutes = (seconds / 60).round();
+    if (minutes < 60) return '$minutes menit';
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+    return '${hours}j ${remainingMinutes}m';
+  }
+
   @override
   Widget build(BuildContext context) {
     final driverPoint = _driverPosition == null
@@ -518,11 +606,12 @@ class _CustomerLocationMapScreenState extends State<CustomerLocationMapScreen> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.jeepora.app',
               ),
-              if (driverPoint != null)
+              if (driverPoint != null && _routePoints.isNotEmpty)
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: [driverPoint, customerPoint],
+                      // Mengikuti rute jalan dari OSRM. Jika gagal, fallback-nya garis lurus.
+                      points: _routePoints,
                       strokeWidth: 4,
                       color: AppColors.primary,
                     ),
@@ -588,6 +677,41 @@ class _CustomerLocationMapScreenState extends State<CustomerLocationMapScreen> {
               ),
             ],
           ),
+
+          if (_isLoadingRoute || _routeError != null)
+            Positioned(
+              left: 16,
+              right: 16,
+              top: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.divider, width: 0.5),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _routeError == null
+                          ? Icons.route_rounded
+                          : Icons.warning_amber_rounded,
+                      size: 18,
+                      color: _routeError == null
+                          ? AppColors.primaryDark
+                          : AppColors.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _routeError ?? 'Mengambil rute jalan real...',
+                        style: AppTextStyles.caption,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // Panel kompas arah jemput pelanggan.
           Positioned(
@@ -655,9 +779,11 @@ class _CustomerLocationMapScreenState extends State<CustomerLocationMapScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          _distanceToCustomer == null
-                              ? 'Heading HP: ${heading.toStringAsFixed(0)}°'
-                              : 'Jarak pelanggan ± ${_formatDistance(_distanceToCustomer!)} • Heading ${heading.toStringAsFixed(0)}°',
+                          _routeDistanceMeters != null
+                              ? 'Rute jalan ± ${_formatDistance(_routeDistanceMeters!)} • ${_formatDuration(_routeDurationSeconds ?? 0)}'
+                              : _distanceToCustomer == null
+                                  ? 'Heading HP: ${heading.toStringAsFixed(0)}°'
+                                  : 'Jarak lurus ± ${_formatDistance(_distanceToCustomer!)} • Heading ${heading.toStringAsFixed(0)}°',
                           style: AppTextStyles.caption,
                         ),
                       ],
