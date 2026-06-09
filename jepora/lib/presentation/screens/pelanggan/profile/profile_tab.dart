@@ -42,7 +42,7 @@ class _ProfileTabState extends State<ProfileTab> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ── Header profil ─────────────────────────────────
+            // warna Header profil 
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
@@ -194,7 +194,7 @@ class _MenuSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(title, style: AppTextStyles.caption),
         ),
-        //editprofil background
+        //warna editprofil background
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,

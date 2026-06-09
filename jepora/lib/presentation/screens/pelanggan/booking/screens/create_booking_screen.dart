@@ -32,23 +32,23 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   bool                  _voucherLoading = false;
   String?               _voucherError;
 
-  /// ✅ FIXED: Accept LocationModel dari location picker
+  ///  Accept LocationModel dari location picker
   Future<void> _pickLocation() async {
     try {
       final result = await Navigator.pushNamed(context, '/location-picker');
       
       if (!mounted) return;
       
-      debugPrint('📍 Location picker result: $result (Type: ${result.runtimeType})');
+      debugPrint(' Location picker result: $result (Type: ${result.runtimeType})');
       
-      // ✅ PERBEDAAN: Terima LocationModel, bukan LatLng
+      //  Terima LocationModel, bukan LatLng
       if (result != null && result is LocationModel) {
         setState(() {
           _selectedLocation = LatLng(result.latitude, result.longitude);
           _addressLabel = result.label ?? 
               "${result.latitude.toStringAsFixed(5)}, ${result.longitude.toStringAsFixed(5)}";
         });
-        debugPrint('✅ Location selected: $_addressLabel');
+        debugPrint(' Location selected: $_addressLabel');
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -60,7 +60,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
           );
         }
       } else {
-        debugPrint('⚠️ Location picker returned null or invalid type: $result');
+        debugPrint(' Location picker returned null or invalid type: $result');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -71,7 +71,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
         }
       }
     } catch (e) {
-      debugPrint('❌ Error in location picker: $e');
+      debugPrint(' Error in location picker: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -97,7 +97,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     });
   }
 
-  /// ✅ PERBAIKAN 2: Override didChangeDependencies untuk accept packageId dari route arguments
+  /// Override didChangeDependencies untuk accept packageId dari route arguments
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -133,7 +133,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     }
   }
 
-  /// ✅ HELPER: Find package by ID (kompatibel dengan semua versi Dart)
+  ///  Find package by ID (kompatibel dengan semua versi Dart)
   PackageModel? _findPackageById(List<PackageModel> packages, int id) {
     try {
       return packages.firstWhere((p) => p.id == id);
@@ -172,7 +172,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       return;
     }
 
-    /// ✅ PERBAIKAN 3: Better validation untuk location
+    ///  Better validation untuk location
     if (_selectedLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -181,11 +181,11 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
           duration: Duration(seconds: 3),
         ),
       );
-      debugPrint('❌ Submit failed: No location selected');
+      debugPrint(' Submit failed: No location selected');
       return;
     }
 
-    debugPrint('✅ Form validation passed. Location: $_addressLabel');
+    debugPrint(' Form validation passed. Location: $_addressLabel');
 
     final orderService = context.read<OrderService>();
 
@@ -193,7 +193,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       packageId:   _selectedPkg!,
       bookingDate: DateFormat('yyyy-MM-dd').format(_selectedDate!),
 
-      // 🔥 LOKASI DIPERBAIKI
+      //  LOKASI DIPERBAIKI
       latitude:    _selectedLocation!.latitude,
       longitude:   _selectedLocation!.longitude,
 
@@ -327,7 +327,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
             children: [
               const Text('Paket Wisata', style: AppTextStyles.label),
               const SizedBox(height: 8),
-              // ✅ PERBAIKAN 2: Jika paket sudah dipilih dari route arguments, tampilkan fixed — tidak bisa diganti
+              //  Jika paket sudah dipilih dari route arguments, tampilkan fixed — tidak bisa diganti
               if (_selectedPkg != null && selectedPkg != null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -569,7 +569,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               const Text('Lokasi Penjemputan', style: AppTextStyles.label),
               const SizedBox(height: 8),
 
-              /// ✅ PERBAIKAN 1: Location picker dengan visual feedback
+              ///  Location picker dengan visual feedback
               GestureDetector(
                 onTap: _pickLocation,
                 child: Container(
@@ -776,5 +776,3 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   }
 }
 
-// ─── ORDER DETAIL SCREEN ──────────────────────────────────────
-/// Route: '/order-detail', arguments: int orderId

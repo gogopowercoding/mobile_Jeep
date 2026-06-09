@@ -98,7 +98,7 @@ class _AppTextFieldState extends State<AppTextField> {
         hintText: widget.hint,
 
         filled: true,
-        fillColor: widget.fillColor ?? const Color(0xFFF1FFF6),
+        fillColor: widget.fillColor ?? const Color.fromARGB(255, 241, 255, 246),
 
         prefixIcon: widget.prefixIcon != null
             ? Icon(

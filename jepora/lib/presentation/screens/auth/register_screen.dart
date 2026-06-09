@@ -52,7 +52,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final auth = context.watch<AuthService>();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
@@ -76,6 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hint: 'Masukkan nama',
                 controller: _nameCtrl,
                 prefixIcon: Icons.person_outline_rounded,
+                fillColor: const Color.fromARGB(255, 255, 252, 252),
                 validator: (v) => v!.isEmpty ? 'Nama wajib diisi' : null,
               ),
               const SizedBox(height: 14),
@@ -85,6 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 prefixIcon: Icons.email_outlined,
+                fillColor: const Color.fromARGB(255, 255, 252, 252),
                 validator: (v) {
                   if (v!.isEmpty) return 'Email wajib diisi';
                   if (!v.contains('@')) return 'Format email tidak valid';
@@ -98,6 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _passwordCtrl,
                 isPassword: true,
                 prefixIcon: Icons.lock_outlined,
+                fillColor: const Color.fromARGB(255, 255, 252, 252),
                 validator: (v) {
                   if (v!.isEmpty) return 'Password wajib diisi';
                   if (v.length < 6) return 'Password minimal 6 karakter';
@@ -115,6 +118,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hint: 'Nomor telepon (opsional)',
                 controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
+                fillColor: const Color.fromARGB(255, 255, 252, 252),
                 prefixIcon: Icons.phone_outlined,
               ),
               const SizedBox(height: 16),

@@ -72,9 +72,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.watch<AuthService>();
  
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       body: Stack(
         children: [
-          // Background gradient hijau atas
+          // warna Background gradient hijau atas
           Container(
             height: MediaQuery.of(context).size.height * 0.42,
             decoration: const BoxDecoration(
@@ -119,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
  
                   const SizedBox(height: 100),
  
-                  // Card form
+                  // warna Card form
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     padding: const EdgeInsets.all(24),
@@ -170,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         
                           const SizedBox(height: 8),
  
-                          // Login button + biometric di theme/app_theme.dart
+                          // warna Login button + biometric di theme/app_theme.dart
                           Row(
                             children: [
                               Expanded(

@@ -41,7 +41,7 @@ class _BookingTabState extends State<BookingTab> {
   Widget build(BuildContext context) {
     final orders = context.watch<OrderService>();
     final auth   = context.watch<AuthService>();
-
+  //warna
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -54,7 +54,7 @@ class _BookingTabState extends State<BookingTab> {
         ],
       ),
       body: orders.isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(child: CircularProgressIndicator(color: Color.fromARGB(255, 198, 209, 202)))
           : orders.orders.isEmpty
               ? EmptyState(
                   title: 'Belum ada pesanan',
@@ -79,7 +79,7 @@ class _BookingTabState extends State<BookingTab> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Icon(Icons.check_circle_outline_rounded,
-                                  size: 64, color: AppColors.primary),
+                                  size: 64, color: Color.fromARGB(255, 198, 209, 202)),
                               const SizedBox(height: 16),
                               const Text('Semua pesanan selesai!',
                                 style: TextStyle(

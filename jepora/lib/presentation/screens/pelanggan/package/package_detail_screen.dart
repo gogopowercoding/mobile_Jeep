@@ -5,6 +5,7 @@ import 'package:jepora/data/services/api_services.dart';
 import 'package:jepora/data/models/models.dart';
 import 'package:jepora/presentation/widgets/common/common_widgets.dart';
 import 'package:jepora/presentation/widgets/common/package_itinerary_widget.dart';
+import 'package:jepora/core/constants/app_constants.dart';
 
 /// Screen detail paket wisata
 /// Route: '/package-detail', arguments: int packageId
@@ -45,6 +46,28 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
     )}';
   }
 
+    String? _getImageUrl(String? image) {
+      if (image == null || image.trim().isEmpty) return null;
+
+      final cleanImage = image.trim();
+
+      if (cleanImage.startsWith('http')) {
+        return cleanImage;
+      }
+
+      final baseUrl = AppConstants.baseUrl.replaceAll('/api', '');
+
+      if (cleanImage.startsWith('/uploads/')) {
+        return '$baseUrl$cleanImage';
+      }
+
+      if (cleanImage.startsWith('uploads/')) {
+        return '$baseUrl/$cleanImage';
+      }
+
+      return '$baseUrl/uploads/$cleanImage';
+    }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,6 +82,7 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
 
   Widget _buildContent() {
     final pkg = _package!;
+    final imageUrl = _getImageUrl(pkg.image);
     return CustomScrollView(
       slivers: [
         // ── Hero image / App bar ──────────────────────────────
@@ -77,15 +101,21 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
               ),
             ),
           ),
-          flexibleSpace: FlexibleSpaceBar(
-            background: pkg.image != null
-                ? Image.network(
-                    pkg.image!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _PlaceholderImage(),
-                  )
-                : _PlaceholderImage(),
-          ),
+     flexibleSpace: FlexibleSpaceBar(
+  background: imageUrl != null
+      ? Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, error, stackTrace) {
+            debugPrint('GAGAL LOAD IMAGE DETAIL: $imageUrl');
+            debugPrint('ERROR: $error');
+            return _PlaceholderImage();
+          },
+        )
+      : _PlaceholderImage(),
+),
         ),
 
         // ── Content ───────────────────────────────────────────
